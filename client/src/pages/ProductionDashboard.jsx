@@ -741,7 +741,6 @@ export default function ProductionDashboard() {
       {/* ====== BARRA DAS ABAS DOS PRODUTOS - SEMPRE VISÍVEL ====== */}
       <div className="w-full" style={{background: 'linear-gradient(to right, #4a007f, #8000ff)', color: 'white', padding: '12px 16px', minHeight: '60px'}}>
         <div style={{display: 'flex', gap: '24px', alignItems: 'center', fontSize: '14px', fontWeight: '500'}}>
-          <span style={{marginRight: '12px', fontWeight: '600'}}>🏭 Produto:</span>
           <button
             onClick={() => setActiveProductTab('bottons')}
             style={{
@@ -802,80 +801,6 @@ export default function ProductionDashboard() {
             Mouse Pad
           </button>
         </div>
-      </div>
-
-      {/* ABAS DOS PRODUTOS */}
-      <div style={{
-        backgroundColor: '#6b46c1',
-        color: 'white',
-        padding: '12px 20px',
-        display: 'flex',
-        gap: '20px',
-        alignItems: 'center',
-        fontSize: '14px',
-        fontWeight: '500'
-      }}>
-        <span style={{fontWeight: 'bold', marginRight: '10px'}}>🏭 Produto:</span>
-        
-        <button 
-          onClick={() => setActiveProductTab('bottons')}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '4px',
-            border: 'none',
-            backgroundColor: activeProductTab === 'bottons' ? 'white' : '#6b46c1',
-            color: activeProductTab === 'bottons' ? '#4a007f' : 'white',
-            fontWeight: activeProductTab === 'bottons' ? 'bold' : 'normal',
-            cursor: 'pointer'
-          }}
-        >
-          🔘 Botton Americano
-        </button>
-        
-        <button 
-          onClick={() => setActiveProductTab('pins_chaveiros')}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '4px',
-            border: 'none',
-            backgroundColor: activeProductTab === 'pins_chaveiros' ? 'white' : '#6b46c1',
-            color: activeProductTab === 'pins_chaveiros' ? '#4a007f' : 'white',
-            fontWeight: activeProductTab === 'pins_chaveiros' ? 'bold' : 'normal',
-            cursor: 'pointer'
-          }}
-        >
-          📎 Pins e Chaveiros
-        </button>
-        
-        <button 
-          onClick={() => setActiveProductTab('etiquetas')}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '4px',
-            border: 'none',
-            backgroundColor: activeProductTab === 'etiquetas' ? 'white' : '#6b46c1',
-            color: activeProductTab === 'etiquetas' ? '#4a007f' : 'white',
-            fontWeight: activeProductTab === 'etiquetas' ? 'bold' : 'normal',
-            cursor: 'pointer'
-          }}
-        >
-          🏷️ Etiquetas
-        </button>
-        
-        <button 
-          onClick={() => setActiveProductTab('mousepad')}
-          style={{
-            padding: '8px 16px',
-            borderRadius: '4px',
-            border: 'none',
-            backgroundColor: activeProductTab === 'mousepad' ? 'white' : '#6b46c1',
-            color: activeProductTab === 'mousepad' ? '#4a007f' : 'white',
-            fontWeight: activeProductTab === 'mousepad' ? 'bold' : 'normal',
-            cursor: 'pointer'
-          }}
-        >
-          🖱️ Mouse Pad
-        </button>
       </div>
 
       <section className="w-full">
