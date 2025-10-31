@@ -804,6 +804,91 @@ export default function ProductionDashboard() {
         </div>
       </div>
 
+      {/* ABAS DOS PRODUTOS - TESTE DE VISIBILIDADE */}
+      <div style={{
+        backgroundColor: '#ff0000',
+        color: 'white',
+        padding: '20px',
+        margin: '20px 0',
+        textAlign: 'center',
+        fontSize: '18px',
+        fontWeight: 'bold'
+      }}>
+        ⚠️ TESTE: SE VOCÊ VÊ ESTA BARRA VERMELHA, O CÓDIGO ESTÁ FUNCIONANDO ⚠️
+      </div>
+
+      <div style={{
+        backgroundColor: '#4a007f',
+        color: 'white',
+        padding: '16px',
+        display: 'flex',
+        gap: '16px',
+        alignItems: 'center',
+        flexWrap: 'wrap'
+      }}>
+        <span style={{fontWeight: 'bold', fontSize: '16px'}}>🏭 Selecione o Produto:</span>
+        
+        <button 
+          onClick={() => setActiveProductTab('bottons')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '4px',
+            border: 'none',
+            backgroundColor: activeProductTab === 'bottons' ? 'white' : '#6b46c1',
+            color: activeProductTab === 'bottons' ? '#4a007f' : 'white',
+            fontWeight: activeProductTab === 'bottons' ? 'bold' : 'normal',
+            cursor: 'pointer'
+          }}
+        >
+          🔘 Botton Americano
+        </button>
+        
+        <button 
+          onClick={() => setActiveProductTab('pins_chaveiros')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '4px',
+            border: 'none',
+            backgroundColor: activeProductTab === 'pins_chaveiros' ? 'white' : '#6b46c1',
+            color: activeProductTab === 'pins_chaveiros' ? '#4a007f' : 'white',
+            fontWeight: activeProductTab === 'pins_chaveiros' ? 'bold' : 'normal',
+            cursor: 'pointer'
+          }}
+        >
+          📎 Pins e Chaveiros
+        </button>
+        
+        <button 
+          onClick={() => setActiveProductTab('etiquetas')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '4px',
+            border: 'none',
+            backgroundColor: activeProductTab === 'etiquetas' ? 'white' : '#6b46c1',
+            color: activeProductTab === 'etiquetas' ? '#4a007f' : 'white',
+            fontWeight: activeProductTab === 'etiquetas' ? 'bold' : 'normal',
+            cursor: 'pointer'
+          }}
+        >
+          🏷️ Etiquetas
+        </button>
+        
+        <button 
+          onClick={() => setActiveProductTab('mousepad')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '4px',
+            border: 'none',
+            backgroundColor: activeProductTab === 'mousepad' ? 'white' : '#6b46c1',
+            color: activeProductTab === 'mousepad' ? '#4a007f' : 'white',
+            fontWeight: activeProductTab === 'mousepad' ? 'bold' : 'normal',
+            cursor: 'pointer'
+          }}
+        >
+          🖱️ Mouse Pad
+        </button>
+      </div>
+
       <section className="w-full">
         <div className="bg-white border border-[#ddd9f7] rounded-md shadow-sm p-4 flex flex-col gap-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
