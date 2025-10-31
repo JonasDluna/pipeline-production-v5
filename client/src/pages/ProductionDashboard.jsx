@@ -54,24 +54,97 @@ const ensureBrazilianDateFormat = (dateString) => {
   return formatDateForDisplay(dateString);
 };
 
-const PRODUTOS = [
-  "Chaveiro Relevo Com Pintura",
-  "Chaveiro Relevo Sem Pintura",
-  "Chaveiro Resinado",
-  "Pin Relevo Com Pintura",
-  "Pin Relevo Sem Pintura",
-  "Pin Gaveta Personalizada",
-  "Pin Gaveta Padrão"
-];
+// Definição dos produtos e seus pipelines específicos
+const PRODUCT_TYPES = {
+  pins_chaveiros: {
+    id: 'pins_chaveiros',
+    name: 'Pins e Chaveiros em Relevo',
+    icon: '📎',
+    produtos: [
+      "Chaveiro Relevo Com Pintura",
+      "Chaveiro Relevo Sem Pintura", 
+      "Pin Relevo Com Pintura",
+      "Pin Relevo Sem Pintura",
+      "Pin Gaveta Personalizada",
+      "Pin Gaveta Padrão"
+    ]
+  },
+  bottons: {
+    id: 'bottons',
+    name: 'Bottons Americano',
+    icon: '🔘',
+    produtos: [
+      "Botton Americano 25mm",
+      "Botton Americano 32mm",
+      "Botton Americano 38mm",
+      "Botton Americano 44mm"
+    ]
+  },
+  etiquetas: {
+    id: 'etiquetas',
+    name: 'Etiqueta Resinada',
+    icon: '🏷️',
+    produtos: [
+      "Etiqueta Resinada Pequena",
+      "Etiqueta Resinada Média",
+      "Etiqueta Resinada Grande",
+      "Etiqueta Resinada Personalizada"
+    ]
+  },
+  mousepad: {
+    id: 'mousepad',
+    name: 'Mouse Pad',
+    icon: '🖱️',
+    produtos: [
+      "Mouse Pad Retangular",
+      "Mouse Pad Circular",
+      "Mouse Pad Personalizado",
+      "Mouse Pad com Base Antiderrapante"
+    ]
+  }
+};
 
-const STAGES = [
-  { key: "NOVO_PEDIDO", label: "Novo Pedido" },
-  { key: "FUNDICAO", label: "Fundição" },
-  { key: "BANHO", label: "Banho" },
-  { key: "PINTURA", label: "Pintura" },
-  { key: "EMBALAGEM", label: "Embalagens" },
-  { key: "FINALIZADO", label: "Finalizado" },
-];
+// Etapas específicas para cada tipo de produto
+const PRODUCT_STAGES = {
+  pins_chaveiros: [
+    { key: "NOVO_PEDIDO", label: "Novo Pedido" },
+    { key: "FUNDICAO", label: "Fundição" },
+    { key: "BANHO", label: "Banho" },
+    { key: "PINTURA", label: "Pintura" },
+    { key: "EMBALAGEM", label: "Embalagem" },
+    { key: "FINALIZADO", label: "Finalizado" }
+  ],
+  bottons: [
+    { key: "NOVO_PEDIDO", label: "Novo Pedido" },
+    { key: "CORTE", label: "Corte" },
+    { key: "PRENSAGEM", label: "Prensagem" },
+    { key: "ACABAMENTO", label: "Acabamento" },
+    { key: "EMBALAGEM", label: "Embalagem" },
+    { key: "FINALIZADO", label: "Finalizado" }
+  ],
+  etiquetas: [
+    { key: "NOVO_PEDIDO", label: "Novo Pedido" },
+    { key: "IMPRESSAO", label: "Impressão" },
+    { key: "APLICACAO_RESINA", label: "Aplicação Resina" },
+    { key: "SECAGEM", label: "Secagem" },
+    { key: "CORTE_FINAL", label: "Corte Final" },
+    { key: "FINALIZADO", label: "Finalizado" }
+  ],
+  mousepad: [
+    { key: "NOVO_PEDIDO", label: "Novo Pedido" },
+    { key: "SUBLIMACAO", label: "Sublimação" },
+    { key: "CORTE", label: "Corte" },
+    { key: "ACABAMENTO", label: "Acabamento" },
+    { key: "EMBALAGEM", label: "Embalagem" },
+    { key: "FINALIZADO", label: "Finalizado" }
+  ]
+};
+
+// Função para obter as etapas do produto ativo
+const getActiveStages = (productType) => PRODUCT_STAGES[productType] || PRODUCT_STAGES.pins_chaveiros;
+
+// Função para obter os produtos do tipo ativo
+const getActiveProducts = (productType) => PRODUCT_TYPES[productType]?.produtos || PRODUCT_TYPES.pins_chaveiros.produtos;
 
 export default function ProductionDashboard() {
   const [jobs, setJobs] = useState([]);
@@ -97,6 +170,7 @@ export default function ProductionDashboard() {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
   const [currentUser] = useState('demo-user-' + Math.random().toString(36).substr(2, 9));
+  const [activeProductTab, setActiveProductTab] = useState('pins_chaveiros');
 
   // Funções de persistência de dados
   const saveToLocalStorage = (jobsData) => {
@@ -605,6 +679,7 @@ export default function ProductionDashboard() {
           </div>
         </div>
       )}
+      
       <header className="bg-white border border-[#ddd9f7] rounded-md p-4 shadow-sm">
         <div className="flex flex-col gap-1 mb-4">
           <div className="flex items-center gap-2 text-[#4a007f] font-semibold text-lg">
@@ -663,6 +738,72 @@ export default function ProductionDashboard() {
         </div>
       </header>
 
+      {/* ====== BARRA DAS ABAS DOS PRODUTOS - SEMPRE VISÍVEL ====== */}
+      <div className="w-full" style={{background: 'linear-gradient(to right, #4a007f, #8000ff)', color: 'white', padding: '12px 16px', minHeight: '60px'}}>
+        <div style={{display: 'flex', gap: '24px', alignItems: 'center', fontSize: '14px', fontWeight: '500'}}>
+          <span style={{marginRight: '12px', fontWeight: '600'}}>🏭 Produto:</span>
+          <button
+            onClick={() => setActiveProductTab('bottons')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '4px',
+              border: 'none',
+              background: activeProductTab === 'bottons' ? 'rgba(255,255,255,0.2)' : 'transparent',
+              color: 'white',
+              cursor: 'pointer',
+              fontWeight: activeProductTab === 'bottons' ? '600' : '500'
+            }}
+          >
+            Botton Americano
+          </button>
+          
+          <button
+            onClick={() => setActiveProductTab('pins_chaveiros')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '4px',
+              border: 'none',
+              background: activeProductTab === 'pins_chaveiros' ? 'rgba(255,255,255,0.2)' : 'transparent',
+              color: 'white',
+              cursor: 'pointer',
+              fontWeight: activeProductTab === 'pins_chaveiros' ? '600' : '500'
+            }}
+          >
+            Pins e Chaveiros em Relevo
+          </button>
+          
+          <button
+            onClick={() => setActiveProductTab('etiquetas')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '4px',
+              border: 'none',
+              background: activeProductTab === 'etiquetas' ? 'rgba(255,255,255,0.2)' : 'transparent',
+              color: 'white',
+              cursor: 'pointer',
+              fontWeight: activeProductTab === 'etiquetas' ? '600' : '500'
+            }}
+          >
+            Etiqueta Resinada
+          </button>
+          
+          <button
+            onClick={() => setActiveProductTab('mousepad')}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '4px',
+              border: 'none',
+              background: activeProductTab === 'mousepad' ? 'rgba(255,255,255,0.2)' : 'transparent',
+              color: 'white',
+              cursor: 'pointer',
+              fontWeight: activeProductTab === 'mousepad' ? '600' : '500'
+            }}
+          >
+            Mouse Pad
+          </button>
+        </div>
+      </div>
+
       <section className="w-full">
         <div className="bg-white border border-[#ddd9f7] rounded-md shadow-sm p-4 flex flex-col gap-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -698,7 +839,7 @@ export default function ProductionDashboard() {
           </div>
 
           <div className="grid grid-cols-6 gap-3 min-h-[400px]">
-            {STAGES.map(stage => (
+            {getActiveStages(activeProductTab).map(stage => (
               <div key={stage.key} className="bg-[#faf9ff] border border-[#c9b8ff] rounded-md flex flex-col max-h-[60vh]" onDragOver={e=>e.preventDefault()} onDrop={(e)=>onDrop(e, stage.key)}>
                 <div className="p-2 border-b border-[#c9b8ff] bg-white rounded-t-md">
                   <div className="text-[12px] font-semibold text-[#4a007f] uppercase tracking-wide">{stage.label}</div>
@@ -860,7 +1001,7 @@ export default function ProductionDashboard() {
           <div className="ml-auto flex items-center gap-2 text-[12px]">
             <select value={etapaFilter} onChange={e=>setEtapaFilter(e.target.value)} className="bg-white text-[12px] text-slate-700 border border-[#ddd9f7] rounded px-2 py-1">
               <option value="ALL">Todas Etapas</option>
-              {STAGES.map(s => (<option key={s.key} value={s.key}>{s.label}</option>))}
+              {getActiveStages(activeProductTab).map(s => (<option key={s.key} value={s.key}>{s.label}</option>))}
             </select>
 
             <select value={tipoFilter} onChange={e=>setTipoFilter(e.target.value)} className="bg-white text-[12px] text-slate-700 border border-[#ddd9f7] rounded px-2 py-1">
@@ -1152,7 +1293,7 @@ export default function ProductionDashboard() {
                   className="w-full px-3 py-2 text-[13px] border border-[#ddd9f7] rounded-md focus:outline-none focus:border-[#4a007f] bg-white"
                 >
                   <option value="">Selecione um produto</option>
-                  {PRODUTOS.map(produto => (
+                  {getActiveProducts(activeProductTab).map(produto => (
                     <option key={produto} value={produto}>{produto}</option>
                   ))}
                 </select>
