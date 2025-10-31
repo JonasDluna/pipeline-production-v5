@@ -368,8 +368,17 @@ export default function ProductionDashboard() {
       };
 
       if (isSupabaseConnected) {
-        // Atualiza no Supabase
-        await jobService.updateJob(draggingId, updatedJob);
+        // Verificar se é UUID (Supabase) ou ID numérico (local)
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(draggingId);
+        
+        if (isUUID) {
+          // Job do Supabase - atualizar
+          await jobService.updateJob(draggingId, updatedJob);
+        } else {
+          // Job local - migrar para Supabase
+          const newJob = await jobService.createJob(updatedJob);
+          setJobs(prev => prev.filter(j => j.id !== draggingId).concat(newJob));
+        }
       } else if (!isDemoMode) {
         // Tenta API local
         const res = await fetch(`/api/jobs/${draggingId}/stage`, { 
@@ -426,6 +435,7 @@ export default function ProductionDashboard() {
           createdBy: currentUser || 'Usuário Anônimo'
         };
 
+        // Criar no Supabase (ele gerará o UUID automaticamente)
         novoJob = await jobService.createJob(jobData);
         console.log("✅ Job criado no Supabase:", novoJob.id);
 
@@ -711,9 +721,18 @@ export default function ProductionDashboard() {
                               if (confirm(`Tem certeza que deseja excluir a OP ${job.numeroOP}?\n\nEsta ação não pode ser desfeita.`)) {
                                 try {
                                   if (isSupabaseConnected) {
-                                    // Delete no Supabase
-                                    await jobService.deleteJob(job.id);
-                                    console.log("🗑️ Job deletado no Supabase:", job.id);
+                                    // Verificar se é UUID (Supabase) ou ID numérico (local)
+                                    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(job.id);
+                                    
+                                    if (isUUID) {
+                                      // Job do Supabase - deletar
+                                      await jobService.deleteJob(job.id);
+                                      console.log("🗑️ Job deletado no Supabase:", job.id);
+                                    } else {
+                                      // Job local - apenas remover localmente
+                                      setJobs(prev => prev.filter(j => j.id !== job.id));
+                                      console.log("🗑️ Job local removido:", job.id);
+                                    }
                                   } else if (!isDemoMode) {
                                     // Delete via API local
                                     const res = await fetch(`/api/jobs/${job.id}`, { method: "DELETE" });
@@ -912,10 +931,19 @@ export default function ProductionDashboard() {
                         if (window.confirm(`Tem certeza que deseja excluir a OP ${job.numeroOP}?`)) {
                           try {
                             if (isSupabaseConnected) {
-                              // Delete no Supabase
-                              await jobService.deleteJob(job.id);
-                              console.log("🗑️ Job deletado no Supabase:", job.id);
-                              alert("OP excluída e sincronizada!");
+                              // Verificar se é UUID (Supabase) ou ID numérico (local)
+                              const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(job.id);
+                              
+                              if (isUUID) {
+                                // Job do Supabase - deletar
+                                await jobService.deleteJob(job.id);
+                                console.log("🗑️ Job deletado no Supabase:", job.id);
+                                alert("OP excluída e sincronizada!");
+                              } else {
+                                // Job local - apenas remover localmente
+                                setJobs(jobs.filter(j => j.id !== job.id));
+                                alert("OP local removida!");
+                              }
                             } else if (!isDemoMode) {
                               // Delete via API local
                               const res = await fetch(`/api/jobs/${job.id}`, {
@@ -1092,10 +1120,22 @@ export default function ProductionDashboard() {
                       const payload = { ...editingJob, ...editFormData };
                       
                       if (isSupabaseConnected) {
-                        // Atualiza no Supabase
-                        await jobService.updateJob(editingJob.id, payload);
-                        console.log("✅ Job atualizado no Supabase:", editingJob.id);
-                        alert("Alterações salvas e sincronizadas!");
+                        // Verificar se é um job criado no Supabase (UUID) ou local (numérico)
+                        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(editingJob.id);
+                        
+                        if (isUUID) {
+                          // Job do Supabase - atualizar
+                          await jobService.updateJob(editingJob.id, payload);
+                          console.log("✅ Job atualizado no Supabase:", editingJob.id);
+                          alert("Alterações salvas e sincronizadas!");
+                        } else {
+                          // Job local - criar novo no Supabase
+                          const newJob = await jobService.createJob(payload);
+                          // Remover job local e adicionar o do Supabase
+                          setJobs(prev => prev.filter(j => j.id !== editingJob.id).concat(newJob));
+                          console.log("✅ Job migrado para Supabase:", newJob.id);
+                          alert("Job migrado para o sistema colaborativo!");
+                        }
                       } else if (!isDemoMode) {
                         // API local
                         const res = await fetch(`/api/jobs/${editingJob.id}`, {
