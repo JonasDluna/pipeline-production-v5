@@ -3,11 +3,38 @@ import { jobService, convertFromSupabase } from "../lib/supabase";
 
 const formatDateForInput = (dateString) => {
   if (!dateString) return '';
-  const parts = dateString.split('/');
-  if (parts.length !== 3) return '';
-  const [day, month, year] = parts;
-  if (!day || !month || !year) return '';
-  return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+  
+  // Se já está no formato yyyy-mm-dd, retorna diretamente
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return dateString;
+  }
+  
+  // Se está no formato dd/mm/yyyy, converte
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateString)) {
+    const parts = dateString.split('/');
+    const [day, month, year] = parts;
+    return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+  }
+  
+  return '';
+};
+
+// Função para converter de yyyy-mm-dd para dd/mm/yyyy
+const formatDateForDisplay = (dateString) => {
+  if (!dateString) return '';
+  
+  // Se já está no formato dd/mm/yyyy, retorna diretamente
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateString)) {
+    return dateString;
+  }
+  
+  // Se está no formato yyyy-mm-dd, converte
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    const [year, month, day] = dateString.split('-');
+    return `${parseInt(day)}/${parseInt(month)}/${year}`;
+  }
+  
+  return '';
 };
 
 const PRODUTOS = [
@@ -1102,9 +1129,9 @@ export default function ProductionDashboard() {
                   type="date" 
                   value={editFormData.prazo ? formatDateForInput(editFormData.prazo) : ''}
                   onChange={e => {
-                    const date = e.target.value ? new Date(e.target.value) : null;
-                    const formattedDate = date ? date.toLocaleDateString('pt-BR') : '';
-                    setEditFormData({...editFormData, prazo: formattedDate});
+                    const inputValue = e.target.value; // formato yyyy-mm-dd
+                    const displayDate = inputValue ? formatDateForDisplay(inputValue) : ''; // converte para dd/mm/yyyy
+                    setEditFormData({...editFormData, prazo: displayDate});
                   }}
                   className="w-full px-3 py-2 text-[13px] border border-[#ddd9f7] rounded-md focus:outline-none focus:border-[#4a007f]"
                 />
