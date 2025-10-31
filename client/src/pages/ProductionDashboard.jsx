@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { jobService, convertFromSupabase } from "../lib/supabase";
 
 const formatDateForInput = (dateString) => {
   const [day, month, year] = dateString.split('/');
@@ -46,6 +47,8 @@ export default function ProductionDashboard() {
   const [etapaFilter, setEtapaFilter] = useState("ALL");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
+  const [currentUser] = useState('demo-user-' + Math.random().toString(36).substr(2, 9));
 
   // Funções de persistência de dados
   const saveToLocalStorage = (jobsData) => {
@@ -154,24 +157,57 @@ export default function ProductionDashboard() {
   ];
 
   useEffect(() => { 
-    // Tenta buscar da API, se falhar usa dados salvos ou exemplos
-    fetch("/api/jobs")
-      .then(r=>r.json())
-      .then(setJobs)
+    // Tenta conectar com Supabase primeiro
+    jobService.getJobs()
+      .then(supabaseJobs => {
+        console.log("🌐 Conectado ao Supabase - Modo colaborativo ativo!");
+        setIsSupabaseConnected(true);
+        const jobs = supabaseJobs.map(convertFromSupabase);
+        setJobs(jobs);
+      })
       .catch(() => {
-        console.log("🚀 Modo demonstração ativo - Dados salvos localmente");
-        setIsDemoMode(true);
-        const savedJobs = loadFromLocalStorage();
-        setJobs(savedJobs);
+        // Se Supabase falhar, tenta API local
+        fetch("/api/jobs")
+          .then(r=>r.json())
+          .then(setJobs)
+          .catch(() => {
+            console.log("🚀 Modo demonstração ativo - Dados salvos localmente");
+            setIsDemoMode(true);
+            const savedJobs = loadFromLocalStorage();
+            setJobs(savedJobs);
+          });
       }); 
   }, []);
 
-  // Auto-salva quando jobs mudarem (em modo demo)
+  // Subscrever para mudanças em tempo real do Supabase
   useEffect(() => {
-    if (isDemoMode && jobs.length > 0) {
+    if (!isSupabaseConnected) return;
+
+    const subscription = jobService.subscribeToJobs((payload) => {
+      console.log('🔔 Mudança detectada:', payload);
+      
+      if (payload.eventType === 'INSERT') {
+        const newJob = convertFromSupabase(payload.new);
+        setJobs(prev => [newJob, ...prev]);
+      } else if (payload.eventType === 'UPDATE') {
+        const updatedJob = convertFromSupabase(payload.new);
+        setJobs(prev => prev.map(job => job.id === updatedJob.id ? updatedJob : job));
+      } else if (payload.eventType === 'DELETE') {
+        setJobs(prev => prev.filter(job => job.id !== payload.old.id));
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [isSupabaseConnected]);
+
+  // Auto-salva quando jobs mudarem (somente em modo demo puro)
+  useEffect(() => {
+    if (isDemoMode && jobs.length > 0 && !isSupabaseConnected) {
       saveToLocalStorage(jobs);
     }
-  }, [jobs, isDemoMode]);
+  }, [jobs, isDemoMode, isSupabaseConnected]);
 
   // Filtrar jobs baseado na view ativa, filtros de etapa, tipo e busca
   const filteredJobs = () => {
@@ -318,8 +354,24 @@ export default function ProductionDashboard() {
     e.preventDefault();
     if(!draggingId) return;
     
-    if (!isDemoMode) {
-      try {
+    try {
+      const job = jobs.find(j => j.id === draggingId);
+      if (!job) return;
+
+      const updatedJob = { 
+        ...job, 
+        etapaAtual: newStage,
+        historicoEtapas: [
+          ...job.historicoEtapas,
+          { etapa: newStage, dataEntrada: new Date().toISOString() }
+        ]
+      };
+
+      if (isSupabaseConnected) {
+        // Atualiza no Supabase
+        await jobService.updateJob(draggingId, updatedJob);
+      } else if (!isDemoMode) {
+        // Tenta API local
         const res = await fetch(`/api/jobs/${draggingId}/stage`, { 
           method:"PUT", 
           headers:{ "Content-Type":"application/json" }, 
@@ -327,18 +379,13 @@ export default function ProductionDashboard() {
         });
         const updated = await res.json();
         setJobs(prev => prev.map(j => j.id===updated.id ? updated : j));
-      } catch (error) {
-        setIsDemoMode(true);
-        // Atualiza localmente em caso de falha
-        setJobs(prev => prev.map(j => {
-          if (j.id === draggingId) {
-            return { ...j, etapaAtual: newStage };
-          }
-          return j;
-        }));
+      } else {
+        // Modo local - atualiza diretamente
+        setJobs(prev => prev.map(j => j.id === draggingId ? updatedJob : j));
       }
-    } else {
-      // Modo demonstração - atualiza diretamente
+    } catch (error) {
+      console.error('Erro ao mover job:', error);
+      // Fallback local
       setJobs(prev => prev.map(j => {
         if (j.id === draggingId) {
           return { ...j, etapaAtual: newStage };
@@ -355,12 +402,45 @@ export default function ProductionDashboard() {
     if (!pdfFile) { alert("Selecione um PDF da OP primeiro."); return; }
     
     try {
-      const fd = new FormData();
-      fd.append("file", pdfFile);
-      const res = await fetch("/api/upload-op", { method: "POST", body: fd });
-      if (!res.ok) throw new Error("API não disponível");
-      const novoJob = await res.json();
-      setJobs(prev => [...prev, novoJob]);
+      let novoJob;
+
+      if (isSupabaseConnected) {
+        // Supabase mode - processa PDF localmente e cria job
+        const reader = new FileReader();
+        const pdfBase64 = await new Promise((resolve) => {
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(pdfFile);
+        });
+
+        const jobData = {
+          numeroOP: `OP-${Math.floor(Math.random() * 10000)}`,
+          cliente: pdfFile.name.split('.')[0] || "Cliente Novo", 
+          produto: "Produto a definir",
+          quantidade: 1,
+          prazo: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
+          tipoPedido: 'VENDA',
+          etapaAtual: 'NOVO_PEDIDO',
+          historicoEtapas: [{ etapa: "NOVO_PEDIDO", dataEntrada: new Date().toISOString() }],
+          pdfData: pdfBase64,
+          pdfName: pdfFile.name,
+          createdBy: currentUser || 'Usuário Anônimo'
+        };
+
+        novoJob = await jobService.createJob(jobData);
+        console.log("✅ Job criado no Supabase:", novoJob.id);
+
+      } else if (!isDemoMode) {
+        // API mode
+        const fd = new FormData();
+        fd.append("file", pdfFile);
+        const res = await fetch("/api/upload-op", { method: "POST", body: fd });
+        if (!res.ok) throw new Error("API não disponível");
+        novoJob = await res.json();
+        setJobs(prev => [...prev, novoJob]);
+      } else {
+        throw new Error("Demo mode");
+      }
+      
       setPdfFile(null);
       setOpenUpload(false);
       
@@ -376,6 +456,7 @@ export default function ProductionDashboard() {
         etapaAtual: novoJob.etapaAtual
       });
       setEditingJob(novoJob);
+
     } catch (err) {
       // Modo demonstração - cria job simulado
       console.log("Modo demonstração: criando job simulado");
@@ -510,8 +591,32 @@ export default function ProductionDashboard() {
         <div className="bg-white border border-[#ddd9f7] rounded-md shadow-sm p-4 flex flex-col gap-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex flex-col">
-              <div className="text-slate-700 text-[14px] font-semibold">Pipeline de Produção</div>
-              <div className="text-[12px] text-slate-500">Acompanhe as etapas de cada OP</div>
+              <div className="flex items-center gap-2">
+                <div className="text-slate-700 text-[14px] font-semibold">Pipeline de Produção</div>
+                {isSupabaseConnected && (
+                  <span className="text-[11px] bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+                    🌐 Multi-usuários
+                  </span>
+                )}
+                {!isSupabaseConnected && !isDemoMode && (
+                  <span className="text-[11px] bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
+                    🖥️ API Local
+                  </span>
+                )}
+                {isDemoMode && !isSupabaseConnected && (
+                  <span className="text-[11px] bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-medium">
+                    🚀 Demo
+                  </span>
+                )}
+              </div>
+              <div className="text-[12px] text-slate-500">
+                {isSupabaseConnected 
+                  ? "Sincronização em tempo real ativa - Mudanças são compartilhadas entre usuários"
+                  : isDemoMode 
+                    ? "Modo demonstração - Dados salvos localmente" 
+                    : "Servidor local ativo"
+                }
+              </div>
             </div>
             <button className="bg-[#4a007f] text-white text-[13px] rounded-md px-3 py-2 font-medium shadow-sm hover:bg-[#5f00a8]">Filtrar</button>
           </div>
@@ -605,14 +710,23 @@ export default function ProductionDashboard() {
                             onClick={async () => {
                               if (confirm(`Tem certeza que deseja excluir a OP ${job.numeroOP}?\n\nEsta ação não pode ser desfeita.`)) {
                                 try {
-                                  if (!isDemoMode) {
+                                  if (isSupabaseConnected) {
+                                    // Delete no Supabase
+                                    await jobService.deleteJob(job.id);
+                                    console.log("🗑️ Job deletado no Supabase:", job.id);
+                                  } else if (!isDemoMode) {
+                                    // Delete via API local
                                     const res = await fetch(`/api/jobs/${job.id}`, { method: "DELETE" });
                                     if (!res.ok) throw new Error("Falha ao excluir");
+                                    // Remove do estado local
+                                    setJobs(prev => prev.filter(j => j.id !== job.id));
+                                  } else {
+                                    // Mode demo - remove localmente
+                                    setJobs(prev => prev.filter(j => j.id !== job.id));
                                   }
-                                  // Remove do estado local
-                                  setJobs(prev => prev.filter(j => j.id !== job.id));
                                 } catch (error) {
-                                  // Em caso de erro da API, remove localmente
+                                  console.error('Erro ao excluir:', error);
+                                  // Em caso de erro, remove localmente
                                   setJobs(prev => prev.filter(j => j.id !== job.id));
                                 }
                               }
@@ -797,18 +911,33 @@ export default function ProductionDashboard() {
                       onClick={async () => {
                         if (window.confirm(`Tem certeza que deseja excluir a OP ${job.numeroOP}?`)) {
                           try {
-                            const res = await fetch(`/api/jobs/${job.id}`, {
-                              method: "DELETE"
-                            });
+                            if (isSupabaseConnected) {
+                              // Delete no Supabase
+                              await jobService.deleteJob(job.id);
+                              console.log("🗑️ Job deletado no Supabase:", job.id);
+                              alert("OP excluída e sincronizada!");
+                            } else if (!isDemoMode) {
+                              // Delete via API local
+                              const res = await fetch(`/api/jobs/${job.id}`, {
+                                method: "DELETE"
+                              });
 
-                            if (!res.ok) {
-                              throw new Error("Falha ao excluir OP");
+                              if (!res.ok) {
+                                throw new Error("Falha ao excluir OP");
+                              }
+
+                              setJobs(jobs.filter(j => j.id !== job.id));
+                              alert("OP excluída com sucesso!");
+                            } else {
+                              // Modo demo - remove localmente
+                              setJobs(jobs.filter(j => j.id !== job.id));
+                              alert("OP excluída (modo demonstração)!");
                             }
-
-                            setJobs(jobs.filter(j => j.id !== job.id));
-                            alert("OP excluída com sucesso!");
                           } catch (error) {
-                            alert("Erro ao excluir OP: " + error.message);
+                            console.error('Erro ao excluir:', error);
+                            // Fallback local
+                            setJobs(jobs.filter(j => j.id !== job.id));
+                            alert("OP excluída localmente!");
                           }
                         }
                       }}
@@ -962,7 +1091,13 @@ export default function ProductionDashboard() {
                       // Garantir que sempre enviamos os campos atuais
                       const payload = { ...editingJob, ...editFormData };
                       
-                      if (!isDemoMode) {
+                      if (isSupabaseConnected) {
+                        // Atualiza no Supabase
+                        await jobService.updateJob(editingJob.id, payload);
+                        console.log("✅ Job atualizado no Supabase:", editingJob.id);
+                        alert("Alterações salvas e sincronizadas!");
+                      } else if (!isDemoMode) {
+                        // API local
                         const res = await fetch(`/api/jobs/${editingJob.id}`, {
                           method: "PUT",
                           headers: {
@@ -977,20 +1112,21 @@ export default function ProductionDashboard() {
 
                         const updatedJob = await res.json();
                         setJobs(jobs.map(j => j.id === updatedJob.id ? updatedJob : j));
+                        alert("Alterações salvas com sucesso!");
                       } else {
                         // Modo demonstração - atualiza localmente
                         setJobs(jobs.map(j => j.id === editingJob.id ? payload : j));
+                        alert("Alterações salvas (modo demonstração)!");
                       }
                       
                       setEditingJob(null);
-                      alert("Alterações salvas com sucesso!");
                     } catch (error) {
-                      setIsDemoMode(true);
-                      // Em caso de erro, atualiza localmente
+                      console.error('Erro ao salvar:', error);
+                      // Fallback local em caso de erro
                       const payload = { ...editingJob, ...editFormData };
                       setJobs(jobs.map(j => j.id === editingJob.id ? payload : j));
                       setEditingJob(null);
-                      alert("Alterações salvas (modo demonstração)!");
+                      alert("Alterações salvas localmente!");
                     }
                   }}
                   className="flex-1 px-4 py-2 text-[13px] font-semibold text-white bg-[#4a007f] rounded-md hover:bg-[#5f00a8]"

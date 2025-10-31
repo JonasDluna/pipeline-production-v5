@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Produção - Multi-usuários com Supabase</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .feature {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            background: #f8f9ff;
+        }
+        .feature h3 {
+            margin: 0 0 10px 0;
+            color: #4a007f;
+        }
+        
+        .setup-steps {
+            background: #f8f9ff;
+            border: 1px solid #ddd9f7;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        code {
+            background: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        pre {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            overflow-x: auto;
+        }
+        
+        .button {
+            background: #4a007f;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 5px;
+        }
+        
+        .button:hover {
+            background: #5f00a8;
+        }
+        
+        .button.secondary {
+            background: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Pipeline de Produção v5 - Modo Multi-usuários</h1>
+        
+        <div class="status success">
+            ✅ <strong>Implementação Concluída!</strong> Sistema agora suporta múltiplos usuários em tempo real usando Supabase.
+        </div>
+        
+        <h2>🌟 Novas Funcionalidades Implementadas</h2>
+        
+        <div class="feature-list">
+            <div class="feature">
+                <h3>🌐 Sincronização em Tempo Real</h3>
+                <p>Múltiplos usuários podem trabalhar simultaneamente. Mudanças aparecem instantaneamente para todos os usuários conectados.</p>
+                <ul>
+                    <li>Criação de OPs sincronizada</li>
+                    <li>Movimentação entre etapas em tempo real</li>
+                    <li>Edição e exclusão compartilhadas</li>
+                </ul>
+            </div>
+            
+            <div class="feature">
+                <h3>🔄 Sistema de Fallback</h3>
+                <p>Funciona em 3 níveis de conectividade para máxima confiabilidade:</p>
+                <ul>
+                    <li><strong>Supabase</strong>: Modo colaborativo preferido</li>
+                    <li><strong>API Local</strong>: Servidor local como backup</li>
+                    <li><strong>Demo</strong>: Funcionalidade offline completa</li>
+                </ul>
+            </div>
+            
+            <div class="feature">
+                <h3>📊 Indicadores Visuais</h3>
+                <p>Status de conectividade claramente visível:</p>
+                <ul>
+                    <li>🌐 <strong>Multi-usuários</strong>: Verde quando conectado ao Supabase</li>
+                    <li>🖥️ <strong>API Local</strong>: Azul para servidor local</li>
+                    <li>🚀 <strong>Demo</strong>: Amarelo para modo offline</li>
+                </ul>
+            </div>
+            
+            <div class="feature">
+                <h3>🛡️ Preservação de Dados</h3>
+                <p>Todas as funcionalidades existentes mantidas:</p>
+                <ul>
+                    <li>Upload e processamento de PDFs</li>
+                    <li>Drag & drop entre etapas</li>
+                    <li>Edição detalhada de OPs</li>
+                    <li>Histórico de movimentações</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="setup-steps">
+            <h2>🔧 Como Configurar o Modo Multi-usuários</h2>
+            
+            <h3>Passo 1: Criar Projeto no Supabase</h3>
+            <ol>
+                <li>Acesse <a href="https://supabase.com" target="_blank">https://supabase.com</a></li>
+                <li>Crie um novo projeto chamado <code>pipeline-production-v5</code></li>
+                <li>Escolha a região <strong>South America (São Paulo)</strong></li>
+            </ol>
+            
+            <h3>Passo 2: Configurar Banco de Dados</h3>
+            <p>No <strong>SQL Editor</strong> do Supabase, execute este comando:</p>
+            <pre><code>CREATE TABLE jobs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  numero_op VARCHAR(50) NOT NULL,
+  cliente TEXT NOT NULL,
+  produto TEXT NOT NULL,
+  quantidade INTEGER NOT NULL,
+  prazo DATE,
+  tipo_pedido VARCHAR(20) DEFAULT 'VENDA',
+  etapa_atual VARCHAR(50) DEFAULT 'NOVO_PEDIDO',
+  historico_etapas JSONB DEFAULT '[]',
+  pdf_data TEXT,
+  pdf_name VARCHAR(255),
+  created_by VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Habilitar tempo real
+ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Permitir todas operações" ON jobs FOR ALL USING (true);</code></pre>
+            
+            <h3>Passo 3: Configurar Variáveis de Ambiente</h3>
+            <p>Crie um arquivo <code>.env</code> na pasta <code>client/</code>:</p>
+            <pre><code>VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua_chave_anonima</code></pre>
+            
+            <p><strong>⚠️ Importante:</strong> Substitua pelos valores reais do seu projeto Supabase!</p>
+            
+            <h3>Passo 4: Habilitar Realtime</h3>
+            <ol>
+                <li>Vá para <strong>Database → Replication</strong></li>
+                <li>Encontre a tabela <code>jobs</code></li>
+                <li>Habilite o toggle <strong>Realtime</strong></li>
+            </ol>
+        </div>
+        
+        <div class="status warning">
+            <strong>📋 Documentação Completa:</strong> Consulte o arquivo <code>SUPABASE_SETUP.md</code> para instruções detalhadas e troubleshooting.
+        </div>
+        
+        <h2>🎯 Teste da Funcionalidade</h2>
+        
+        <p>Para testar o sistema multi-usuários:</p>
+        <ol>
+            <li>Configure o Supabase conforme instruções acima</li>
+            <li>Execute o sistema: <code>npm run dev</code></li>
+            <li>Abra em múltiplas abas/navegadores</li>
+            <li>Crie uma OP em uma aba</li>
+            <li>Observe aparecer instantaneamente nas outras abas</li>
+            <li>Mova OPs entre etapas e veja a sincronização</li>
+        </ol>
+        
+        <div class="status success">
+            <strong>🎉 Resultado:</strong> Agora você tem um sistema de pipeline totalmente colaborativo onde "eles colocam OP eu vejo aqui e ao contrário também"!
+        </div>
+        
+        <div style="margin-top: 30px; text-align: center;">
+            <a href="../README.md" class="button">📖 Ver README</a>
+            <a href="../SUPABASE_SETUP.md" class="button secondary">🔧 Setup Completo</a>
+        </div>
+    </div>
+</body>
+</html>

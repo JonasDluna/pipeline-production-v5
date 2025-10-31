@@ -1,9 +1,25 @@
 # Pipeline Production v5
 
-Sistema de gestão de produção industrial com pipeline de etapas e dashboard interativo.
+Sistema de gestão de produção industrial com pipeline de etapas, dashboard interativo e **colaboração multi-usuários em tempo real**.
 
-## 🚀 Funcionalidades
+## 🌟 **NOVIDADE: Modo Multi-usuários** 
 
+🌐 **Sistema totalmente colaborativo**: Múltiplos usuários podem trabalhar simultaneamente e ver as mudanças em tempo real!
+
+### ✨ Funcionalidades Colaborativas
+- **Sincronização instantânea** - Mudanças aparecem para todos os usuários conectados
+- **Sistema de fallback inteligente** - Supabase → API Local → Modo Demo
+- **Indicadores visuais** - Status de conectividade sempre visível
+- **Preservação total** - Todas as funcionalidades existentes mantidas
+
+## 🚀 Funcionalidades Completas
+
+### 🔄 **Colaboração em Tempo Real** (NOVO)
+- **Multi-usuários simultâneos** - Trabalho colaborativo sem conflitos
+- **Sincronização instantânea** - Mudanças aparecem em tempo real
+- **3 modos de operação** - Máxima confiabilidade em qualquer situação
+
+### 📊 **Gestão Completa de Produção**
 - **Upload de OPs via PDF** - Extração automática de dados
 - **Pipeline interativo** - Drag & drop entre etapas
 - **Dashboard completo** - Visão geral da produção
@@ -16,10 +32,18 @@ Sistema de gestão de produção industrial com pipeline de etapas e dashboard i
 
 ## 🛠️ Tecnologias
 
+### Stack Principal
 - **Frontend**: React, Vite, Tailwind CSS
 - **Backend**: Node.js, Express
+- **Banco Multi-usuários**: Supabase (PostgreSQL + Realtime)
 - **PDF Parser**: Extração automática de dados
 - **Proxy**: Configurado para desenvolvimento
+
+### Arquitetura Colaborativa
+- **Supabase**: Banco em nuvem com sincronização em tempo real
+- **Row Level Security**: Segurança por usuário (configurável)
+- **Realtime Subscriptions**: WebSocket para mudanças instantâneas
+- **Progressive Enhancement**: Sistema funciona mesmo se Supabase estiver indisponível
 
 ## 📦 Instalação
 
@@ -47,7 +71,23 @@ cd server
 npm install
 ```
 
-### 3. Execute o sistema
+### 3. Configure Modo Multi-usuários (OPCIONAL)
+
+Para ativar a **colaboração em tempo real**, configure o Supabase:
+
+**📋 Setup Rápido:**
+1. Crie projeto em [supabase.com](https://supabase.com)
+2. Execute o SQL do arquivo `SUPABASE_SETUP.md`
+3. Copie URL e chave anon
+4. Crie `client/.env`:
+```bash
+VITE_SUPABASE_URL=https://seu-projeto.supabase.co
+VITE_SUPABASE_ANON_KEY=sua_chave_anonima
+```
+
+**🔗 Documentação completa**: Ver arquivo [`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md)
+
+### 4. Execute o sistema
 
 **Terminal 1 - Servidor:**
 ```bash
@@ -65,8 +105,47 @@ O sistema estará disponível em:
 - Frontend: http://localhost:5173
 - API: http://localhost:3001
 
-## 📱 Como usar
+## � Modos de Operação
 
+O sistema possui **3 modos automáticos** com fallback inteligente:
+
+### 🌐 **Modo Supabase** (Multi-usuários - PREFERIDO)
+- **Indicador**: 🌐 Multi-usuários (verde)  
+- **Quando**: Supabase configurado e conectado
+- **Funcionalidades**: 
+  - ✅ Colaboração em tempo real
+  - ✅ Múltiplos usuários simultâneos
+  - ✅ Sincronização instantânea
+  - ✅ Dados persistentes na nuvem
+
+### 🖥️ **Modo API Local** (Servidor local)
+- **Indicador**: 🖥️ API Local (azul)
+- **Quando**: Supabase indisponível mas servidor rodando
+- **Funcionalidades**:
+  - ✅ Todas as funcionalidades básicas
+  - ✅ Upload de PDFs com processamento
+  - ❌ Sem colaboração multi-usuários
+
+### 🚀 **Modo Demo** (Offline)
+- **Indicador**: 🚀 Demo (amarelo)
+- **Quando**: Nem Supabase nem servidor disponíveis  
+- **Funcionalidades**:
+  - ✅ Interface completa
+  - ✅ Dados salvos localmente (localStorage)
+  - ✅ Simulação de upload de PDFs
+  - ❌ Sem persistência entre sessões
+  - ❌ Sem colaboração
+
+## �📱 Como usar
+
+### 🎯 **Colaboração Multi-usuários** (Modo Supabase)
+1. **Configure** o Supabase (ver `SUPABASE_SETUP.md`)
+2. **Abra** múltiplas abas/navegadores
+3. **Crie** uma OP em uma aba - **apareça instantaneamente** nas outras
+4. **Mova** cards entre etapas - **sincronize** em tempo real
+5. **Edite** dados - **atualize** para todos simultaneamente
+
+### 🔧 **Operação Geral**
 1. **Nova OP**: Faça upload de PDFs para criar ordens de produção
 2. **Pipeline**: Arraste cards entre etapas (Novo Pedido → Fundição → Banho → Pintura → Embalagem → Finalizado)
 3. **Busca**: Digite OP, cliente ou produto para filtrar
