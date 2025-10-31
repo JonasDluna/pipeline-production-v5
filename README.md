@@ -126,13 +126,23 @@ proxy: {
 
 ### Para acessar via web (sem instalação local):
 
+**🎯 Demo online**: https://pipeline-production-v5.vercel.app
+
 1. **Deploy na Vercel** (recomendado):
    - Acesse https://vercel.com
    - Faça login com GitHub
    - Importe este repositório
-   - Deploy automático
+   - Configure:
+     - Framework: Vite
+     - Root Directory: `client`
+     - Build Command: `npm run build`
+     - Output Directory: `dist`
 
-2. **Outras opções**: Netlify, Railway, Render
+2. **Deploy no Netlify**:
+   - Acesse https://netlify.com
+   - Conecte GitHub
+   - Build command: `cd client && npm run build`
+   - Publish directory: `client/dist`
 
 📖 **Guia completo**: Veja `DEPLOY.md` para instruções detalhadas
 
