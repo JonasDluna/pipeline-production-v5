@@ -282,7 +282,9 @@ export default function ProductionDashboard() {
           if (job.etapaAtual === "FINALIZADO") return false;
           if (!job.prazo) return false;
           try {
-            const prazoDate = new Date(job.prazo);
+            // Converter data brasileira para objeto Date corretamente
+            const [day, month, year] = job.prazo.split('/').map(num => parseInt(num));
+            const prazoDate = new Date(year, month - 1, day); // mês é 0-based
             const today = new Date();
             prazoDate.setHours(0,0,0,0);
             today.setHours(0,0,0,0);
@@ -632,11 +634,17 @@ export default function ProductionDashboard() {
               <span className="ml-auto bg-red-600 text-white text-[11px] px-2 py-1 rounded-full">
                 {jobs.filter(j => {
                   if (!j.prazo || j.etapaAtual === "FINALIZADO") return false;
-                  const prazoDate = new Date(j.prazo);
-                  const today = new Date();
-                  prazoDate.setHours(0, 0, 0, 0);
-                  today.setHours(0, 0, 0, 0);
-                  return today > prazoDate;
+                  try {
+                    // Converter data brasileira para objeto Date corretamente
+                    const [day, month, year] = j.prazo.split('/').map(num => parseInt(num));
+                    const prazoDate = new Date(year, month - 1, day); // mês é 0-based
+                    const today = new Date();
+                    prazoDate.setHours(0, 0, 0, 0);
+                    today.setHours(0, 0, 0, 0);
+                    return today > prazoDate;
+                  } catch (error) {
+                    return false;
+                  }
                 }).length}
               </span>
             </div>
@@ -925,12 +933,23 @@ export default function ProductionDashboard() {
                         <span>{ensureBrazilianDateFormat(job.prazo)}</span>
                         {(() => {
                           if (job.etapaAtual !== "FINALIZADO" && job.prazo) {
-                            const prazoDate = new Date(job.prazo);
-                            const today = new Date();
-                            prazoDate.setHours(0, 0, 0, 0);
-                            today.setHours(0, 0, 0, 0);
-                            if (today > prazoDate) {
-                              return <span className="text-red-500 font-bold" title="Pedido em atraso">⚠️</span>;
+                            try {
+                              // Converter data brasileira para objeto Date corretamente
+                              const [day, month, year] = job.prazo.split('/').map(num => parseInt(num));
+                              const prazoDate = new Date(year, month - 1, day); // mês é 0-based
+                              const today = new Date();
+                              prazoDate.setHours(0, 0, 0, 0);
+                              today.setHours(0, 0, 0, 0);
+                              
+                              if (today > prazoDate) {
+                                return (
+                                  <span className="inline-flex items-center px-2 py-1 text-xs font-bold text-red-700 bg-red-100 border border-red-300 rounded-md" title="Pedido em atraso">
+                                    ⚠️ ATRASADO
+                                  </span>
+                                );
+                              }
+                            } catch (error) {
+                              console.warn('Erro ao verificar prazo:', job.prazo, error);
                             }
                           }
                           return null;
