@@ -88,6 +88,36 @@ export const jobService = {
   }
 }
 
+// Função helper para garantir formato brasileiro de data
+const ensureBrazilianDateFormat = (dateString) => {
+  if (!dateString) return '';
+  
+  // Se já está no formato dd/mm/yyyy, retorna diretamente
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateString)) {
+    return dateString;
+  }
+  
+  // Se está no formato yyyy-mm-dd, converte
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    const [year, month, day] = dateString.split('-');
+    return `${parseInt(day)}/${parseInt(month)}/${year}`;
+  }
+  
+  // Tenta interpretar outras variações de data
+  if (dateString.includes('-') && dateString.length >= 8) {
+    try {
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+      }
+    } catch (error) {
+      console.warn('Erro ao converter data:', dateString, error);
+    }
+  }
+  
+  return dateString; // Retorna original se não conseguir converter
+};
+
 // Converter dados do Supabase para formato do app
 export const convertFromSupabase = (supabaseJob) => {
   return {
@@ -96,7 +126,7 @@ export const convertFromSupabase = (supabaseJob) => {
     cliente: supabaseJob.cliente,
     produto: supabaseJob.produto,
     quantidade: supabaseJob.quantidade,
-    prazo: supabaseJob.prazo,
+    prazo: ensureBrazilianDateFormat(supabaseJob.prazo),
     tipoPedido: supabaseJob.tipo_pedido,
     etapaAtual: supabaseJob.etapa_atual,
     historicoEtapas: supabaseJob.historico_etapas || [],

@@ -34,7 +34,24 @@ const formatDateForDisplay = (dateString) => {
     return `${parseInt(day)}/${parseInt(month)}/${year}`;
   }
   
-  return '';
+  // Tenta interpretar outras variações de data
+  if (dateString.includes('-') && dateString.length >= 8) {
+    try {
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+      }
+    } catch (error) {
+      console.warn('Erro ao converter data:', dateString, error);
+    }
+  }
+  
+  return dateString; // Retorna original se não conseguir converter
+};
+
+// Função para garantir formato brasileiro consistente
+const ensureBrazilianDateFormat = (dateString) => {
+  return formatDateForDisplay(dateString);
 };
 
 const PRODUTOS = [
@@ -689,7 +706,7 @@ export default function ProductionDashboard() {
                         </div>
                         <div>
                           <span className="text-slate-500">Entrega: </span>
-                          <span className={job.prazo ? "font-medium text-red-600" : ""}>{job.prazo || "—"}</span>
+                          <span className={job.prazo ? "font-medium text-red-600" : ""}>{ensureBrazilianDateFormat(job.prazo) || "—"}</span>
                         </div>
                         <div className="text-slate-500">Próxima ação: {stage.key==="FUNDICAO"?"Fundir":stage.key==="BANHO"?"Banhar":stage.key==="PINTURA"?"Pintar":stage.key==="EMBALAGEM"?"Embalar":"Nenhuma"}</div>
                       </div>
@@ -737,7 +754,7 @@ export default function ProductionDashboard() {
                                 `Cliente: ${job.cliente}`,
                                 `Produto: ${job.produto}`,
                                 `Qtd: ${job.quantidade}`,
-                                `Prazo: ${job.prazo}`,
+                                `Prazo: ${ensureBrazilianDateFormat(job.prazo)}`,
                                 `Etapa Atual: ${job.etapaAtual}`,
                                 job.emissao ? `Emissão: ${job.emissao}` : null,
                                 '\nHistórico de Movimentações:',
@@ -895,7 +912,7 @@ export default function ProductionDashboard() {
                   <td className="py-3 px-4">
                     {job.prazo ? (
                       <div className="flex items-center gap-2">
-                        <span>{job.prazo}</span>
+                        <span>{ensureBrazilianDateFormat(job.prazo)}</span>
                         {(() => {
                           if (job.etapaAtual !== "FINALIZADO" && job.prazo) {
                             const prazoDate = new Date(job.prazo);
