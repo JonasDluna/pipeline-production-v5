@@ -21,6 +21,9 @@ export const jobService = {
 
   // Criar novo job
   async createJob(job) {
+    // Garantir que a data mantenha o formato brasileiro
+    const prazoFormatted = job.prazo ? ensureBrazilianDateFormat(job.prazo) : job.prazo;
+    
     const { data, error } = await supabase
       .from('jobs')
       .insert([{
@@ -28,7 +31,7 @@ export const jobService = {
         cliente: job.cliente,
         produto: job.produto,
         quantidade: job.quantidade,
-        prazo: job.prazo,
+        prazo: prazoFormatted,
         tipo_pedido: job.tipoPedido,
         etapa_atual: job.etapaAtual,
         historico_etapas: job.historicoEtapas,
@@ -44,6 +47,9 @@ export const jobService = {
 
   // Atualizar job
   async updateJob(id, updates) {
+    // Garantir que a data mantenha o formato brasileiro
+    const prazoFormatted = updates.prazo ? ensureBrazilianDateFormat(updates.prazo) : updates.prazo;
+    
     const { data, error } = await supabase
       .from('jobs')
       .update({
@@ -51,7 +57,7 @@ export const jobService = {
         cliente: updates.cliente,
         produto: updates.produto,
         quantidade: updates.quantidade,
-        prazo: updates.prazo,
+        prazo: prazoFormatted,
         tipo_pedido: updates.tipoPedido,
         etapa_atual: updates.etapaAtual,
         historico_etapas: updates.historicoEtapas,

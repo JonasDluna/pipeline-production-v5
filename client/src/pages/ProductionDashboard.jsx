@@ -101,7 +101,12 @@ export default function ProductionDashboard() {
   // Funções de persistência de dados
   const saveToLocalStorage = (jobsData) => {
     try {
-      localStorage.setItem('pipeline-jobs', JSON.stringify(jobsData));
+      // Garantir que as datas estejam no formato brasileiro antes de salvar
+      const formattedJobs = jobsData.map(job => ({
+        ...job,
+        prazo: ensureBrazilianDateFormat(job.prazo)
+      }));
+      localStorage.setItem('pipeline-jobs', JSON.stringify(formattedJobs));
       localStorage.setItem('pipeline-last-update', new Date().toISOString());
     } catch (error) {
       console.error('Erro ao salvar dados:', error);
@@ -113,7 +118,12 @@ export default function ProductionDashboard() {
       const savedJobs = localStorage.getItem('pipeline-jobs');
       if (savedJobs) {
         const parsedJobs = JSON.parse(savedJobs);
-        return parsedJobs.length > 0 ? parsedJobs : dadosExemplo;
+        // Garantir que as datas estejam no formato brasileiro ao carregar
+        const formattedJobs = parsedJobs.map(job => ({
+          ...job,
+          prazo: ensureBrazilianDateFormat(job.prazo)
+        }));
+        return formattedJobs.length > 0 ? formattedJobs : dadosExemplo;
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -1174,6 +1184,8 @@ export default function ProductionDashboard() {
                         if (isUUID) {
                           // Job do Supabase - atualizar
                           await jobService.updateJob(editingJob.id, payload);
+                          // Atualizar estado local imediatamente para garantir consistência
+                          setJobs(prev => prev.map(j => j.id === editingJob.id ? payload : j));
                           console.log("✅ Job atualizado no Supabase:", editingJob.id);
                           alert("Alterações salvas e sincronizadas!");
                         } else {
