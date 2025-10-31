@@ -21,8 +21,8 @@ export const jobService = {
 
   // Criar novo job
   async createJob(job) {
-    // Garantir que a data mantenha o formato brasileiro
-    const prazoFormatted = job.prazo ? ensureBrazilianDateFormat(job.prazo) : job.prazo;
+    // Converter data brasileira para formato ISO para o banco
+    const prazoISO = convertBrazilianToISO(job.prazo);
     
     const { data, error } = await supabase
       .from('jobs')
@@ -31,7 +31,7 @@ export const jobService = {
         cliente: job.cliente,
         produto: job.produto,
         quantidade: job.quantidade,
-        prazo: prazoFormatted,
+        prazo: prazoISO,
         tipo_pedido: job.tipoPedido,
         etapa_atual: job.etapaAtual,
         historico_etapas: job.historicoEtapas,
@@ -47,8 +47,8 @@ export const jobService = {
 
   // Atualizar job
   async updateJob(id, updates) {
-    // Garantir que a data mantenha o formato brasileiro
-    const prazoFormatted = updates.prazo ? ensureBrazilianDateFormat(updates.prazo) : updates.prazo;
+    // Converter data brasileira para formato ISO para o banco
+    const prazoISO = convertBrazilianToISO(updates.prazo);
     
     const { data, error } = await supabase
       .from('jobs')
@@ -57,7 +57,7 @@ export const jobService = {
         cliente: updates.cliente,
         produto: updates.produto,
         quantidade: updates.quantidade,
-        prazo: prazoFormatted,
+        prazo: prazoISO,
         tipo_pedido: updates.tipoPedido,
         etapa_atual: updates.etapaAtual,
         historico_etapas: updates.historicoEtapas,
@@ -122,6 +122,24 @@ const ensureBrazilianDateFormat = (dateString) => {
   }
   
   return dateString; // Retorna original se não conseguir converter
+};
+
+// Função para converter data brasileira para formato ISO (para o banco)
+const convertBrazilianToISO = (brazilianDate) => {
+  if (!brazilianDate) return null;
+  
+  // Se está no formato dd/mm/yyyy, converte para yyyy-mm-dd
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(brazilianDate)) {
+    const [day, month, year] = brazilianDate.split('/');
+    return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+  }
+  
+  // Se já está no formato ISO, retorna diretamente
+  if (/^\d{4}-\d{2}-\d{2}$/.test(brazilianDate)) {
+    return brazilianDate;
+  }
+  
+  return null;
 };
 
 // Converter dados do Supabase para formato do app
