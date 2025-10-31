@@ -83,7 +83,60 @@ export default function ProductionDashboard() {
     return dates;
   }; // PRODUCTION, FINISHED, ALERTS, REPORT
 
-  useEffect(() => { fetch("/api/jobs").then(r=>r.json()).then(setJobs).catch(console.error); }, []);
+  // Dados de exemplo para demonstração
+  const dadosExemplo = [
+    {
+      id: "1",
+      numeroOP: "13.456",
+      cliente: "Leticia - Winover",
+      produto: "Chaveiro Relevo Com Pintura",
+      quantidade: 100,
+      prazo: "15/11/2025",
+      tipoPedido: "VENDA",
+      etapaAtual: "NOVO_PEDIDO",
+      historicoEtapas: [{ etapa: "NOVO_PEDIDO", dataEntrada: new Date().toISOString() }]
+    },
+    {
+      id: "2", 
+      numeroOP: "80.878",
+      cliente: "Continental - Tamera",
+      produto: "Pin Relevo Sem Pintura",
+      quantidade: 250,
+      prazo: "20/11/2025",
+      tipoPedido: "REPOSICAO",
+      etapaAtual: "FUNDICAO",
+      historicoEtapas: [
+        { etapa: "NOVO_PEDIDO", dataEntrada: new Date(Date.now() - 86400000).toISOString() },
+        { etapa: "FUNDICAO", dataEntrada: new Date().toISOString() }
+      ]
+    },
+    {
+      id: "3",
+      numeroOP: "22.414", 
+      cliente: "LS Experience",
+      produto: "Pin Gaveta Personalizada",
+      quantidade: 50,
+      prazo: "25/11/2025",
+      tipoPedido: "VENDA",
+      etapaAtual: "BANHO",
+      historicoEtapas: [
+        { etapa: "NOVO_PEDIDO", dataEntrada: new Date(Date.now() - 172800000).toISOString() },
+        { etapa: "FUNDICAO", dataEntrada: new Date(Date.now() - 86400000).toISOString() },
+        { etapa: "BANHO", dataEntrada: new Date().toISOString() }
+      ]
+    }
+  ];
+
+  useEffect(() => { 
+    // Tenta buscar da API, se falhar usa dados de exemplo
+    fetch("/api/jobs")
+      .then(r=>r.json())
+      .then(setJobs)
+      .catch(() => {
+        console.log("API não disponível, usando dados de demonstração");
+        setJobs(dadosExemplo);
+      }); 
+  }, []);
 
   // Filtrar jobs baseado na view ativa, filtros de etapa, tipo e busca
   const filteredJobs = () => {
@@ -229,9 +282,25 @@ export default function ProductionDashboard() {
   async function onDrop(e, newStage){
     e.preventDefault();
     if(!draggingId) return;
-    const res = await fetch(`/api/jobs/${draggingId}/stage`, { method:"PUT", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ etapaAtual:newStage }) });
-    const updated = await res.json();
-    setJobs(prev => prev.map(j => j.id===updated.id ? updated : j));
+    
+    try {
+      const res = await fetch(`/api/jobs/${draggingId}/stage`, { 
+        method:"PUT", 
+        headers:{ "Content-Type":"application/json" }, 
+        body: JSON.stringify({ etapaAtual:newStage }) 
+      });
+      const updated = await res.json();
+      setJobs(prev => prev.map(j => j.id===updated.id ? updated : j));
+    } catch (error) {
+      // Modo demonstração - atualiza localmente
+      console.log("Modo demonstração: movendo card localmente");
+      setJobs(prev => prev.map(j => {
+        if (j.id === draggingId) {
+          return { ...j, etapaAtual: newStage };
+        }
+        return j;
+      }));
+    }
     setDraggingId(null);
   }
   function onDragOver(e){ e.preventDefault(); }
@@ -239,11 +308,12 @@ export default function ProductionDashboard() {
   async function handleUploadOP(e) {
     e.preventDefault();
     if (!pdfFile) { alert("Selecione um PDF da OP primeiro."); return; }
+    
     try {
       const fd = new FormData();
       fd.append("file", pdfFile);
       const res = await fetch("/api/upload-op", { method: "POST", body: fd });
-      if (!res.ok) { alert("Erro ao enviar OP. A API está rodando? (server npm run dev)"); return; }
+      if (!res.ok) throw new Error("API não disponível");
       const novoJob = await res.json();
       setJobs(prev => [...prev, novoJob]);
       setPdfFile(null);
@@ -257,13 +327,40 @@ export default function ProductionDashboard() {
         produto: novoJob.produto,
         quantidade: novoJob.quantidade,
         prazo: novoJob.prazo,
-  tipoPedido: novoJob.tipoPedido || 'VENDA',
+        tipoPedido: novoJob.tipoPedido || 'VENDA',
         etapaAtual: novoJob.etapaAtual
       });
-      // Abre o modal de edição (usa state `editingJob` que controla o modal)
       setEditingJob(novoJob);
     } catch (err) {
-      alert("Falha ao conectar na API. Confira se o server está rodando na porta 3001.");
+      // Modo demonstração - cria job simulado
+      console.log("Modo demonstração: criando job simulado");
+      const novoJob = {
+        id: Date.now().toString(),
+        numeroOP: `DEMO-${Math.floor(Math.random() * 1000)}`,
+        cliente: pdfFile.name.split('.')[0] || "Cliente Exemplo", 
+        produto: "Produto Exemplo",
+        quantidade: 100,
+        prazo: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
+        tipoPedido: 'VENDA',
+        etapaAtual: 'NOVO_PEDIDO',
+        historicoEtapas: [{ etapa: "NOVO_PEDIDO", dataEntrada: new Date().toISOString() }]
+      };
+      
+      setJobs(prev => [...prev, novoJob]);
+      setPdfFile(null);
+      setOpenUpload(false);
+      
+      setEditFormData({
+        id: novoJob.id,
+        numeroOP: novoJob.numeroOP,
+        cliente: novoJob.cliente,
+        produto: novoJob.produto,
+        quantidade: novoJob.quantidade,
+        prazo: novoJob.prazo,
+        tipoPedido: novoJob.tipoPedido,
+        etapaAtual: novoJob.etapaAtual
+      });
+      setEditingJob(novoJob);
     }
   }
 
@@ -271,6 +368,17 @@ export default function ProductionDashboard() {
 
   return (
     <div className="min-h-screen bg-[#f8f8fc] text-slate-800 p-6 flex flex-col gap-6 max-w-[1700px] mx-auto">
+      {/* Banner de demonstração */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+        <div className="flex items-center justify-center gap-2 text-blue-700 font-semibold mb-1">
+          <span>🚀</span>
+          <span>Demonstração do Sistema Pipeline Production v5</span>
+        </div>
+        <p className="text-blue-600 text-sm">
+          Esta é uma versão de demonstração. Upload de arquivos e algumas funcionalidades criam dados simulados. 
+          <a href="https://github.com/JonasDluna/pipeline-production-v5" target="_blank" rel="noopener noreferrer" className="underline ml-1">Ver código no GitHub</a>
+        </p>
+      </div>
       <header className="bg-white border border-[#ddd9f7] rounded-md p-4 shadow-sm">
         <div className="flex flex-col gap-1 mb-4">
           <div className="flex items-center gap-2 text-[#4a007f] font-semibold text-lg">
