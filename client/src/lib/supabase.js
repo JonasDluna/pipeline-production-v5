@@ -34,7 +34,7 @@ export const jobService = {
         historico_etapas: job.historicoEtapas,
         pdf_data: job.pdfData,
         pdf_name: job.pdfName,
-        user_id: job.userId || 'demo-user'
+        created_by: job.createdBy || 'demo-user'
       }])
       .select()
     
@@ -102,7 +102,7 @@ export const convertFromSupabase = (supabaseJob) => {
     historicoEtapas: supabaseJob.historico_etapas || [],
     pdfData: supabaseJob.pdf_data,
     pdfName: supabaseJob.pdf_name,
-    userId: supabaseJob.user_id,
+    createdBy: supabaseJob.created_by,
     createdAt: supabaseJob.created_at,
     updatedAt: supabaseJob.updated_at
   }
