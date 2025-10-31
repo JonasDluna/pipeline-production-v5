@@ -140,6 +140,47 @@ const PRODUCT_STAGES = {
   ]
 };
 
+// Sub-etapas detalhadas para cada etapa principal
+const SUBSTAGES = {
+  FUNDICAO: [
+    { key: "PRODUZINDO_MOLDE", label: "Produzindo Molde" },
+    { key: "FUNDINDO_PECAS", label: "Fundindo as Peças" },
+    { key: "LIMPEZA", label: "Limpeza" },
+    { key: "PRONTO_BANHO", label: "Finalizado - Pronto para Banho" }
+  ],
+  BANHO: [
+    { key: "PREPARACAO", label: "Preparação das Peças" },
+    { key: "PROCESSO_BANHO", label: "Processo de Banho" },
+    { key: "SECAGEM", label: "Secagem" },
+    { key: "PRONTO_PINTURA", label: "Finalizado - Pronto para Pintura" }
+  ],
+  PINTURA: [
+    { key: "PREPARACAO_TINTA", label: "Preparação da Tinta" },
+    { key: "APLICACAO", label: "Aplicação da Tinta" },
+    { key: "SECAGEM_PINTURA", label: "Secagem da Pintura" },
+    { key: "PRONTO_EMBALAGEM", label: "Finalizado - Pronto para Embalagem" }
+  ],
+  EMBALAGEM: [
+    { key: "SEPARACAO", label: "Separação das Peças" },
+    { key: "EMBALANDO", label: "Processo de Embalagem" },
+    { key: "ETIQUETAGEM", label: "Etiquetagem" },
+    { key: "FINALIZADO", label: "Finalizado - Produto Concluído" }
+  ],
+  // Outras etapas para outros produtos
+  CORTE: [
+    { key: "PREPARACAO_MATERIAL", label: "Preparação do Material" },
+    { key: "CORTANDO", label: "Processo de Corte" },
+    { key: "VERIFICACAO", label: "Verificação de Qualidade" },
+    { key: "PRONTO_PRENSAGEM", label: "Finalizado - Pronto para Prensagem" }
+  ],
+  PRENSAGEM: [
+    { key: "SETUP_PRENSA", label: "Setup da Prensa" },
+    { key: "PRENSANDO", label: "Processo de Prensagem" },
+    { key: "CONTROLE_QUALIDADE", label: "Controle de Qualidade" },
+    { key: "PRONTO_ACABAMENTO", label: "Finalizado - Pronto para Acabamento" }
+  ]
+};
+
 // Função para obter as etapas do produto ativo
 const getActiveStages = (productType) => PRODUCT_STAGES[productType] || PRODUCT_STAGES.pins_chaveiros;
 
@@ -171,6 +212,10 @@ export default function ProductionDashboard() {
   const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
   const [currentUser] = useState('demo-user-' + Math.random().toString(36).substr(2, 9));
   const [activeProductTab, setActiveProductTab] = useState('pins_chaveiros');
+  
+  // Estados para barra lateral de detalhamento
+  const [showDetailSidebar, setShowDetailSidebar] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
 
   // Funções de persistência de dados
   const saveToLocalStorage = (jobsData) => {
@@ -255,7 +300,8 @@ export default function ProductionDashboard() {
       prazo: "15/11/2025",
       tipoPedido: "VENDA",
       etapaAtual: "NOVO_PEDIDO",
-      historicoEtapas: [{ etapa: "NOVO_PEDIDO", dataEntrada: new Date().toISOString() }]
+      historicoEtapas: [{ etapa: "NOVO_PEDIDO", dataEntrada: new Date().toISOString() }],
+      substages: {}
     },
     {
       id: "2", 
@@ -269,7 +315,11 @@ export default function ProductionDashboard() {
       historicoEtapas: [
         { etapa: "NOVO_PEDIDO", dataEntrada: new Date(Date.now() - 86400000).toISOString() },
         { etapa: "FUNDICAO", dataEntrada: new Date().toISOString() }
-      ]
+      ],
+      substages: {
+        "PRODUZINDO_MOLDE": { completed: true, completedAt: new Date(Date.now() - 3600000).toISOString(), completedBy: "demo-user" },
+        "FUNDINDO_PECAS": { completed: true, completedAt: new Date(Date.now() - 1800000).toISOString(), completedBy: "demo-user" }
+      }
     },
     {
       id: "3",
@@ -284,7 +334,10 @@ export default function ProductionDashboard() {
         { etapa: "NOVO_PEDIDO", dataEntrada: new Date(Date.now() - 172800000).toISOString() },
         { etapa: "FUNDICAO", dataEntrada: new Date(Date.now() - 86400000).toISOString() },
         { etapa: "BANHO", dataEntrada: new Date().toISOString() }
-      ]
+      ],
+      substages: {
+        "PREPARACAO": { completed: true, completedAt: new Date(Date.now() - 1800000).toISOString(), completedBy: "demo-user" }
+      }
     }
   ];
 
@@ -484,6 +537,40 @@ export default function ProductionDashboard() {
   const jobsByStage = (stageKey) => filteredJobs().filter(j => j.etapaAtual === stageKey);
 
   function onDragStart(e, jobId){ setDraggingId(jobId); e.dataTransfer.effectAllowed="move"; }
+
+  // Função para marcar sub-etapa como concluída
+  const markSubstageComplete = async (jobId, substageKey) => {
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+
+    const now = new Date().toISOString();
+    const updatedSubstages = {
+      ...job.substages,
+      [substageKey]: {
+        completed: true,
+        completedAt: now,
+        completedBy: currentUser
+      }
+    };
+
+    const updatedJob = { ...job, substages: updatedSubstages };
+
+    try {
+      if (isSupabaseConnected) {
+        await jobService.updateJob(jobId, updatedJob);
+      } else {
+        setJobs(prev => prev.map(j => j.id === jobId ? updatedJob : j));
+        saveToLocalStorage(jobs.map(j => j.id === jobId ? updatedJob : j));
+      }
+      
+      // Atualizar o job selecionado se for o mesmo
+      if (selectedJob?.id === jobId) {
+        setSelectedJob(updatedJob);
+      }
+    } catch (error) {
+      console.error('Erro ao marcar sub-etapa como concluída:', error);
+    }
+  };
   async function onDrop(e, newStage){
     e.preventDefault();
     if(!draggingId) return;
@@ -564,6 +651,7 @@ export default function ProductionDashboard() {
           tipoPedido: 'VENDA',
           etapaAtual: 'NOVO_PEDIDO',
           historicoEtapas: [{ etapa: "NOVO_PEDIDO", dataEntrada: new Date().toISOString() }],
+          substages: {},
           pdfData: pdfBase64,
           pdfName: pdfFile.name,
           createdBy: currentUser || 'Usuário Anônimo'
@@ -622,6 +710,7 @@ export default function ProductionDashboard() {
         tipoPedido: 'VENDA',
         etapaAtual: 'NOVO_PEDIDO',
         historicoEtapas: [{ etapa: "NOVO_PEDIDO", dataEntrada: new Date().toISOString() }],
+        substages: {},
         pdfData: pdfBase64, // Salva o PDF para visualização
         pdfName: pdfFile.name
       };
@@ -846,7 +935,17 @@ export default function ProductionDashboard() {
                 </div>
                 <div className="flex-1 p-2 space-y-2 overflow-y-auto">
                   {jobsByStage(stage.key).map(job => (
-                    <div key={job.id} draggable onDragStart={e=>onDragStart(e, job.id)} className="relative bg-white border border-[#ddd9f7] rounded-md shadow-sm p-2 cursor-grab active:cursor-grabbing">
+                    <div 
+                      key={job.id} 
+                      draggable 
+                      onDragStart={e=>onDragStart(e, job.id)} 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedJob(job);
+                        setShowDetailSidebar(true);
+                      }}
+                      className="relative bg-white border border-[#ddd9f7] rounded-md shadow-sm p-2 cursor-pointer hover:bg-[#f8f6ff] transition-colors"
+                    >
                       <div className={`absolute top-2 right-2 text-[11px] px-2 py-1 rounded-full text-white ${ (job.tipoPedido||'VENDA') === 'REPOSICAO' ? 'bg-green-600' : 'bg-[#4a007f]' }`}>
                         {tipoLabel(job.tipoPedido)}
                       </div>
@@ -1619,6 +1718,102 @@ export default function ProductionDashboard() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Barra Lateral de Detalhamento */}
+      {showDetailSidebar && selectedJob && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-end z-50">
+          <div className="bg-white w-96 h-full overflow-y-auto shadow-2xl">
+            {/* Header */}
+            <div className="sticky top-0 bg-[#4a007f] text-white p-4 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-bold">Detalhes da OP</h2>
+                <p className="text-sm opacity-90">#{selectedJob.numeroOP}</p>
+              </div>
+              <button 
+                onClick={() => setShowDetailSidebar(false)}
+                className="text-white hover:bg-white hover:bg-opacity-20 rounded p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Informações Básicas */}
+            <div className="p-4 border-b">
+              <h3 className="font-semibold text-[#4a007f] mb-2">Informações Básicas</h3>
+              <div className="space-y-2 text-sm">
+                <div><span className="text-gray-500">Cliente:</span> <span className="font-medium">{selectedJob.cliente}</span></div>
+                <div><span className="text-gray-500">Produto:</span> <span className="font-medium">{selectedJob.produto}</span></div>
+                <div><span className="text-gray-500">Quantidade:</span> <span className="font-medium">{selectedJob.quantidade} peças</span></div>
+                <div><span className="text-gray-500">Prazo:</span> <span className="font-medium">{ensureBrazilianDateFormat(selectedJob.prazo)}</span></div>
+                <div><span className="text-gray-500">Etapa Atual:</span> <span className="font-medium text-[#4a007f]">{getActiveStages(activeProductTab).find(s => s.key === selectedJob.etapaAtual)?.label}</span></div>
+              </div>
+            </div>
+
+            {/* Progresso da Etapa Atual */}
+            <div className="p-4">
+              <h3 className="font-semibold text-[#4a007f] mb-3">Progresso - {getActiveStages(activeProductTab).find(s => s.key === selectedJob.etapaAtual)?.label}</h3>
+              
+              {SUBSTAGES[selectedJob.etapaAtual] ? (
+                <div className="space-y-3">
+                  {SUBSTAGES[selectedJob.etapaAtual].map((substage, index) => {
+                    const isCompleted = selectedJob.substages?.[substage.key]?.completed || false;
+                    const completedAt = selectedJob.substages?.[substage.key]?.completedAt;
+                    
+                    return (
+                      <div key={substage.key} className={`border rounded-lg p-3 ${isCompleted ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-lg ${isCompleted ? '✅' : '⏳'}`}></span>
+                              <span className={`font-medium ${isCompleted ? 'text-green-700' : 'text-gray-700'}`}>
+                                {substage.label}
+                              </span>
+                            </div>
+                            {isCompleted && completedAt && (
+                              <div className="text-xs text-green-600 mt-1 ml-6">
+                                Concluído em {new Date(completedAt).toLocaleDateString('pt-BR')} às {new Date(completedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            )}
+                          </div>
+                          {!isCompleted && (
+                            <button
+                              onClick={() => markSubstageComplete(selectedJob.id, substage.key)}
+                              className="bg-[#4a007f] text-white text-xs px-3 py-1 rounded hover:bg-purple-700 transition"
+                            >
+                              Concluir
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-gray-500 text-sm">
+                  Sem sub-etapas detalhadas para esta etapa.
+                </div>
+              )}
+            </div>
+
+            {/* Histórico de Etapas */}
+            {selectedJob.historicoEtapas && selectedJob.historicoEtapas.length > 0 && (
+              <div className="p-4 border-t">
+                <h3 className="font-semibold text-[#4a007f] mb-3">Histórico de Etapas</h3>
+                <div className="space-y-2">
+                  {selectedJob.historicoEtapas.map((historico, index) => (
+                    <div key={index} className="flex justify-between text-sm">
+                      <span className="font-medium">{getActiveStages(activeProductTab).find(s => s.key === historico.etapa)?.label || historico.etapa}</span>
+                      <span className="text-gray-500">
+                        {new Date(historico.dataEntrada).toLocaleDateString('pt-BR')} {new Date(historico.dataEntrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
