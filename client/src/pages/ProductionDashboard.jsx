@@ -42,6 +42,7 @@ export default function ProductionDashboard() {
   const [tipoFilter, setTipoFilter] = useState("ALL");
   const [etapaFilter, setEtapaFilter] = useState("ALL");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   // Função para agrupar OPs por data de entrega
   const getMonthDeliveries = () => {
@@ -133,7 +134,8 @@ export default function ProductionDashboard() {
       .then(r=>r.json())
       .then(setJobs)
       .catch(() => {
-        console.log("API não disponível, usando dados de demonstração");
+        console.log("🚀 Modo demonstração ativo - Funcionalidades simuladas");
+        setIsDemoMode(true);
         setJobs(dadosExemplo);
       }); 
   }, []);
@@ -283,17 +285,27 @@ export default function ProductionDashboard() {
     e.preventDefault();
     if(!draggingId) return;
     
-    try {
-      const res = await fetch(`/api/jobs/${draggingId}/stage`, { 
-        method:"PUT", 
-        headers:{ "Content-Type":"application/json" }, 
-        body: JSON.stringify({ etapaAtual:newStage }) 
-      });
-      const updated = await res.json();
-      setJobs(prev => prev.map(j => j.id===updated.id ? updated : j));
-    } catch (error) {
-      // Modo demonstração - atualiza localmente
-      console.log("Modo demonstração: movendo card localmente");
+    if (!isDemoMode) {
+      try {
+        const res = await fetch(`/api/jobs/${draggingId}/stage`, { 
+          method:"PUT", 
+          headers:{ "Content-Type":"application/json" }, 
+          body: JSON.stringify({ etapaAtual:newStage }) 
+        });
+        const updated = await res.json();
+        setJobs(prev => prev.map(j => j.id===updated.id ? updated : j));
+      } catch (error) {
+        setIsDemoMode(true);
+        // Atualiza localmente em caso de falha
+        setJobs(prev => prev.map(j => {
+          if (j.id === draggingId) {
+            return { ...j, etapaAtual: newStage };
+          }
+          return j;
+        }));
+      }
+    } else {
+      // Modo demonstração - atualiza diretamente
       setJobs(prev => prev.map(j => {
         if (j.id === draggingId) {
           return { ...j, etapaAtual: newStage };
@@ -369,16 +381,23 @@ export default function ProductionDashboard() {
   return (
     <div className="min-h-screen bg-[#f8f8fc] text-slate-800 p-6 flex flex-col gap-6 max-w-[1700px] mx-auto">
       {/* Banner de demonstração */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-        <div className="flex items-center justify-center gap-2 text-blue-700 font-semibold mb-1">
-          <span>🚀</span>
-          <span>Demonstração do Sistema Pipeline Production v5</span>
+      {isDemoMode && (
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-center gap-2 text-blue-700 font-semibold mb-2">
+            <span>🚀</span>
+            <span>Modo Demonstração Ativo</span>
+          </div>
+          <div className="text-center text-blue-600 text-sm space-y-1">
+            <p>✅ Todas as funcionalidades visuais funcionam normalmente</p>
+            <p>📁 Upload de PDFs cria dados simulados • 🔄 Drag & drop funciona localmente</p>
+            <p>
+              <a href="https://github.com/JonasDluna/pipeline-production-v5" target="_blank" rel="noopener noreferrer" className="underline font-semibold">
+                Ver código completo no GitHub
+              </a>
+            </p>
+          </div>
         </div>
-        <p className="text-blue-600 text-sm">
-          Esta é uma versão de demonstração. Upload de arquivos e algumas funcionalidades criam dados simulados. 
-          <a href="https://github.com/JonasDluna/pipeline-production-v5" target="_blank" rel="noopener noreferrer" className="underline ml-1">Ver código no GitHub</a>
-        </p>
-      </div>
+      )}
       <header className="bg-white border border-[#ddd9f7] rounded-md p-4 shadow-sm">
         <div className="flex flex-col gap-1 mb-4">
           <div className="flex items-center gap-2 text-[#4a007f] font-semibold text-lg">
@@ -823,28 +842,36 @@ export default function ProductionDashboard() {
                     try {
                       // Garantir que sempre enviamos os campos atuais
                       const payload = { ...editingJob, ...editFormData };
-                      // LOG TEMPORÁRIO: mostrar payload no console para depuração
-                      console.log("[DEBUG] Enviando payload PUT /api/jobs/" + editingJob.id, payload);
-                      const res = await fetch(`/api/jobs/${editingJob.id}`, {
-                        method: "PUT",
-                        headers: {
-                          "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify(payload)
-                      });
+                      
+                      if (!isDemoMode) {
+                        const res = await fetch(`/api/jobs/${editingJob.id}`, {
+                          method: "PUT",
+                          headers: {
+                            "Content-Type": "application/json"
+                          },
+                          body: JSON.stringify(payload)
+                        });
 
-                      if (!res.ok) {
-                        throw new Error("Falha ao salvar alterações");
+                        if (!res.ok) {
+                          throw new Error("Falha ao salvar alterações");
+                        }
+
+                        const updatedJob = await res.json();
+                        setJobs(jobs.map(j => j.id === updatedJob.id ? updatedJob : j));
+                      } else {
+                        // Modo demonstração - atualiza localmente
+                        setJobs(jobs.map(j => j.id === editingJob.id ? payload : j));
                       }
-
-                      const updatedJob = await res.json();
-                      // LOG TEMPORÁRIO: mostrar resposta do servidor
-                      console.log("[DEBUG] Resposta PUT /api/jobs/", updatedJob);
-                      setJobs(jobs.map(j => j.id === updatedJob.id ? updatedJob : j));
+                      
                       setEditingJob(null);
                       alert("Alterações salvas com sucesso!");
                     } catch (error) {
-                      alert("Erro ao salvar alterações: " + error.message);
+                      setIsDemoMode(true);
+                      // Em caso de erro, atualiza localmente
+                      const payload = { ...editingJob, ...editFormData };
+                      setJobs(jobs.map(j => j.id === editingJob.id ? payload : j));
+                      setEditingJob(null);
+                      alert("Alterações salvas (modo demonstração)!");
                     }
                   }}
                   className="flex-1 px-4 py-2 text-[13px] font-semibold text-white bg-[#4a007f] rounded-md hover:bg-[#5f00a8]"
