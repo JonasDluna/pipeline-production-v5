@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "name": "pipeline-production-v5",
+  "builds": [
+    {
+      "src": "client/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "buildCommand": "cd client && npm run build",
+  "outputDirectory": "client/dist",
+  "installCommand": "cd client && npm install",
+  "framework": "vite",
+  "env": {
+    "VITE_SUPABASE_URL": "@vite-supabase-url",
+    "VITE_SUPABASE_ANON_KEY": "@vite-supabase-anon-key"
+  },
+  "build": {
+    "env": {
+      "VITE_SUPABASE_URL": "@vite-supabase-url", 
+      "VITE_SUPABASE_ANON_KEY": "@vite-supabase-anon-key"
+    }
+  }
+}
