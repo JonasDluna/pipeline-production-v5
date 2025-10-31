@@ -140,12 +140,8 @@ const PRODUCT_STAGES = {
   ]
 };
 
-// Função para obter as etapas do produto ativo (excluindo FINALIZADO do pipeline visual)
-const getActiveStages = (productType) => {
-  const stages = PRODUCT_STAGES[productType] || PRODUCT_STAGES.pins_chaveiros;
-  // Remove a etapa FINALIZADO do pipeline visual - jobs finalizados só aparecem na tabela
-  return stages.filter(stage => stage.key !== 'FINALIZADO');
-};
+// Função para obter as etapas do produto ativo
+const getActiveStages = (productType) => PRODUCT_STAGES[productType] || PRODUCT_STAGES.pins_chaveiros;
 
 // Função para obter os produtos do tipo ativo
 const getActiveProducts = (productType) => PRODUCT_TYPES[productType]?.produtos || PRODUCT_TYPES.pins_chaveiros.produtos;
@@ -485,13 +481,7 @@ export default function ProductionDashboard() {
   const tipoLabel = (v) => v === 'REPOSICAO' ? 'REPOSIÇÃO de Estoque' : (v || 'VENDA');
 
   // Retorna jobs por etapa aplicando filtros e busca (para que os cards também respondam dinamicamente)
-  const jobsByStage = (stageKey) => {
-    // Excluir jobs finalizados do pipeline visual - eles só aparecem na tabela
-    if (stageKey === 'FINALIZADO') {
-      return [];
-    }
-    return filteredJobs().filter(j => j.etapaAtual === stageKey && j.etapaAtual !== 'FINALIZADO');
-  };
+  const jobsByStage = (stageKey) => filteredJobs().filter(j => j.etapaAtual === stageKey);
 
   function onDragStart(e, jobId){ setDraggingId(jobId); e.dataTransfer.effectAllowed="move"; }
   async function onDrop(e, newStage){
