@@ -40,6 +40,7 @@ export default function ProductionDashboard() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedDateJobs, setSelectedDateJobs] = useState([]);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [tipoFilter, setTipoFilter] = useState("ALL");
   const [etapaFilter, setEtapaFilter] = useState("ALL");
@@ -70,10 +71,9 @@ export default function ProductionDashboard() {
   };
 
   // Função para agrupar OPs por data de entrega
-  const getMonthDeliveries = () => {
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const getMonthDeliveries = (referenceDate = currentMonth) => {
+    const firstDay = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+    const lastDay = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
     
     // Criar objeto com todas as datas do mês
     const dates = {};
@@ -579,26 +579,47 @@ export default function ProductionDashboard() {
                           </button>
                         )}
                         
-                        <button className="w-full text-[12px] font-medium bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded px-2 py-2 transition"
-                          onClick={() => { 
-                            const movimentacoes = job.historicoEtapas.map(h => {
-                              const data = new Date(h.dataEntrada).toLocaleString();
-                              return `${data} - Movido para ${h.etapa}`;
-                            }).join('\n');
-                            alert([
-                              `OP: ${job.numeroOP}`,
-                              `Cliente: ${job.cliente}`,
-                              `Produto: ${job.produto}`,
-                              `Qtd: ${job.quantidade}`,
-                              `Prazo: ${job.prazo}`,
-                              `Etapa Atual: ${job.etapaAtual}`,
-                              job.emissao ? `Emissão: ${job.emissao}` : null,
-                              '\nHistórico de Movimentações:',
-                              movimentacoes
-                            ].filter(Boolean).join('\n'));
-                          }}>
-                          📊 Ver Histórico
-                        </button>
+                        <div className="flex gap-2">
+                          <button className="flex-1 text-[12px] font-medium bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded px-2 py-2 transition"
+                            onClick={() => { 
+                              const movimentacoes = job.historicoEtapas.map(h => {
+                                const data = new Date(h.dataEntrada).toLocaleString();
+                                return `${data} - Movido para ${h.etapa}`;
+                              }).join('\n');
+                              alert([
+                                `OP: ${job.numeroOP}`,
+                                `Cliente: ${job.cliente}`,
+                                `Produto: ${job.produto}`,
+                                `Qtd: ${job.quantidade}`,
+                                `Prazo: ${job.prazo}`,
+                                `Etapa Atual: ${job.etapaAtual}`,
+                                job.emissao ? `Emissão: ${job.emissao}` : null,
+                                '\nHistórico de Movimentações:',
+                                movimentacoes
+                              ].filter(Boolean).join('\n'));
+                            }}>
+                            📊 Histórico
+                          </button>
+                          
+                          <button className="text-[12px] font-medium bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded px-3 py-2 transition"
+                            onClick={async () => {
+                              if (confirm(`Tem certeza que deseja excluir a OP ${job.numeroOP}?\n\nEsta ação não pode ser desfeita.`)) {
+                                try {
+                                  if (!isDemoMode) {
+                                    const res = await fetch(`/api/jobs/${job.id}`, { method: "DELETE" });
+                                    if (!res.ok) throw new Error("Falha ao excluir");
+                                  }
+                                  // Remove do estado local
+                                  setJobs(prev => prev.filter(j => j.id !== job.id));
+                                } catch (error) {
+                                  // Em caso de erro da API, remove localmente
+                                  setJobs(prev => prev.filter(j => j.id !== job.id));
+                                }
+                              }
+                            }}>
+                            🗑️
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -689,13 +710,23 @@ export default function ProductionDashboard() {
                   <td className="py-3 px-4">{job.produto || "—"}</td>
                   <td className="py-3 px-4">{job.quantidade ?? "—"}</td>
                   <td className="py-3 px-4">
-                    {job.etapaAtual === "NOVO_PEDIDO" ? "Novo Pedido" :
-                     job.etapaAtual === "FUNDICAO" ? "Fundição" :
-                     job.etapaAtual === "BANHO" ? "Banho" :
-                     job.etapaAtual === "PINTURA" ? "Pintura" :
-                     job.etapaAtual === "EMBALAGEM" ? "Embalagem" :
-                     job.etapaAtual === "FINALIZADO" ? "Finalizado" :
-                     job.etapaAtual}
+                    <span className={`inline-block text-[11px] font-semibold text-white rounded px-2 py-1 ${
+                      job.etapaAtual === "NOVO_PEDIDO" ? "bg-blue-500" :
+                      job.etapaAtual === "FUNDICAO" ? "bg-orange-500" :
+                      job.etapaAtual === "BANHO" ? "bg-cyan-500" :
+                      job.etapaAtual === "PINTURA" ? "bg-purple-500" :
+                      job.etapaAtual === "EMBALAGEM" ? "bg-yellow-500" :
+                      job.etapaAtual === "FINALIZADO" ? "bg-green-600" :
+                      "bg-gray-500"
+                    }`}>
+                      {job.etapaAtual === "NOVO_PEDIDO" ? "Novo Pedido" :
+                       job.etapaAtual === "FUNDICAO" ? "Fundição" :
+                       job.etapaAtual === "BANHO" ? "Banho" :
+                       job.etapaAtual === "PINTURA" ? "Pintura" :
+                       job.etapaAtual === "EMBALAGEM" ? "Embalagem" :
+                       job.etapaAtual === "FINALIZADO" ? "Finalizado" :
+                       job.etapaAtual}
+                    </span>
                   </td>
                   <td className="py-3 px-4">
                     {job.prazo ? (
@@ -746,12 +777,19 @@ export default function ProductionDashboard() {
                       }}>
                       Editar
                     </button>
-                    {job.pdfUrl && (
+                    {(job.pdfData || job.pdfUrl) && (
                       <button 
                         className="text-[11px] font-semibold text-white bg-[#4a007f] rounded px-2 py-1 hover:brightness-110"
-                        onClick={() => setPdfPreviewUrl(job.pdfUrl)}
+                        onClick={() => {
+                          if (job.pdfData) {
+                            setCurrentPdfUrl(job.pdfData);
+                          } else if (job.pdfUrl) {
+                            setCurrentPdfUrl(job.pdfUrl);
+                          }
+                          setShowPdfViewer(true);
+                        }}
                       >
-                        Ver OP
+                        📄 Ver PDF
                       </button>
                     )}
                     <button 
@@ -1033,11 +1071,31 @@ export default function ProductionDashboard() {
       {showCalendar && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white border border-[#ddd9f7] rounded-md shadow-xl max-w-4xl w-full p-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center justify-between mb-4">
               <div>
                 <div className="text-[#4a007f] font-semibold text-[15px]">Calendário de Entregas</div>
-                <div className="text-[12px] text-slate-600">
-                  {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                <div className="flex items-center gap-3 mt-2">
+                  <button 
+                    onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+                    className="text-[#4a007f] hover:bg-[#f5f2ff] rounded p-1 text-sm"
+                  >
+                    ← Anterior
+                  </button>
+                  <div className="text-[14px] font-semibold text-slate-700 min-w-[140px] text-center">
+                    {currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                  </div>
+                  <button 
+                    onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+                    className="text-[#4a007f] hover:bg-[#f5f2ff] rounded p-1 text-sm"
+                  >
+                    Próximo →
+                  </button>
+                  <button 
+                    onClick={() => setCurrentMonth(new Date())}
+                    className="text-[11px] bg-[#4a007f] text-white rounded px-2 py-1 hover:bg-[#5f00a8] ml-2"
+                  >
+                    Hoje
+                  </button>
                 </div>
               </div>
               <button onClick={() => setShowCalendar(false)} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
@@ -1053,10 +1111,10 @@ export default function ProductionDashboard() {
               
               {/* Células do calendário */}
               {(() => {
-                const monthDeliveries = getMonthDeliveries();
+                const monthDeliveries = getMonthDeliveries(currentMonth);
                 const today = new Date();
-                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-                const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+                const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
                 const cells = [];
                 
                 // Preencher dias vazios do início
