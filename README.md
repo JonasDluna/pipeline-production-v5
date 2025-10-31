@@ -122,6 +122,20 @@ proxy: {
 - **EMBALAGEM** - Embalagem
 - **FINALIZADO** - Concluído
 
+## 🌐 Deploy Web
+
+### Para acessar via web (sem instalação local):
+
+1. **Deploy na Vercel** (recomendado):
+   - Acesse https://vercel.com
+   - Faça login com GitHub
+   - Importe este repositório
+   - Deploy automático
+
+2. **Outras opções**: Netlify, Railway, Render
+
+📖 **Guia completo**: Veja `DEPLOY.md` para instruções detalhadas
+
 ## 🐛 Troubleshooting
 
 **Erro de porta em uso:**
