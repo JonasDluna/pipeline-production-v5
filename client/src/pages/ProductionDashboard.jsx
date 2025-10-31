@@ -804,29 +804,18 @@ export default function ProductionDashboard() {
         </div>
       </div>
 
-      {/* ABAS DOS PRODUTOS - TESTE DE VISIBILIDADE */}
+      {/* ABAS DOS PRODUTOS */}
       <div style={{
-        backgroundColor: '#ff0000',
+        backgroundColor: '#6b46c1',
         color: 'white',
-        padding: '20px',
-        margin: '20px 0',
-        textAlign: 'center',
-        fontSize: '18px',
-        fontWeight: 'bold'
-      }}>
-        ⚠️ TESTE: SE VOCÊ VÊ ESTA BARRA VERMELHA, O CÓDIGO ESTÁ FUNCIONANDO ⚠️
-      </div>
-
-      <div style={{
-        backgroundColor: '#4a007f',
-        color: 'white',
-        padding: '16px',
+        padding: '12px 20px',
         display: 'flex',
-        gap: '16px',
+        gap: '20px',
         alignItems: 'center',
-        flexWrap: 'wrap'
+        fontSize: '14px',
+        fontWeight: '500'
       }}>
-        <span style={{fontWeight: 'bold', fontSize: '16px'}}>🏭 Selecione o Produto:</span>
+        <span style={{fontWeight: 'bold', marginRight: '10px'}}>🏭 Produto:</span>
         
         <button 
           onClick={() => setActiveProductTab('bottons')}
