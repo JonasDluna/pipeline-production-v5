@@ -32,6 +32,8 @@ export default function ProductionDashboard() {
   const [pdfFile, setPdfFile] = useState(null);
 
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState(null);
+  const [showPdfViewer, setShowPdfViewer] = useState(false);
+  const [currentPdfUrl, setCurrentPdfUrl] = useState(null);
   const [editingJob, setEditingJob] = useState(null);
   const [editFormData, setEditFormData] = useState({});
   const [activeView, setActiveView] = useState("PRODUCTION");
@@ -43,6 +45,29 @@ export default function ProductionDashboard() {
   const [etapaFilter, setEtapaFilter] = useState("ALL");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isDemoMode, setIsDemoMode] = useState(false);
+
+  // Funções de persistência de dados
+  const saveToLocalStorage = (jobsData) => {
+    try {
+      localStorage.setItem('pipeline-jobs', JSON.stringify(jobsData));
+      localStorage.setItem('pipeline-last-update', new Date().toISOString());
+    } catch (error) {
+      console.error('Erro ao salvar dados:', error);
+    }
+  };
+
+  const loadFromLocalStorage = () => {
+    try {
+      const savedJobs = localStorage.getItem('pipeline-jobs');
+      if (savedJobs) {
+        const parsedJobs = JSON.parse(savedJobs);
+        return parsedJobs.length > 0 ? parsedJobs : dadosExemplo;
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+    }
+    return dadosExemplo;
+  };
 
   // Função para agrupar OPs por data de entrega
   const getMonthDeliveries = () => {
@@ -129,16 +154,24 @@ export default function ProductionDashboard() {
   ];
 
   useEffect(() => { 
-    // Tenta buscar da API, se falhar usa dados de exemplo
+    // Tenta buscar da API, se falhar usa dados salvos ou exemplos
     fetch("/api/jobs")
       .then(r=>r.json())
       .then(setJobs)
       .catch(() => {
-        console.log("🚀 Modo demonstração ativo - Funcionalidades simuladas");
+        console.log("🚀 Modo demonstração ativo - Dados salvos localmente");
         setIsDemoMode(true);
-        setJobs(dadosExemplo);
+        const savedJobs = loadFromLocalStorage();
+        setJobs(savedJobs);
       }); 
   }, []);
+
+  // Auto-salva quando jobs mudarem (em modo demo)
+  useEffect(() => {
+    if (isDemoMode && jobs.length > 0) {
+      saveToLocalStorage(jobs);
+    }
+  }, [jobs, isDemoMode]);
 
   // Filtrar jobs baseado na view ativa, filtros de etapa, tipo e busca
   const filteredJobs = () => {
@@ -346,6 +379,14 @@ export default function ProductionDashboard() {
     } catch (err) {
       // Modo demonstração - cria job simulado
       console.log("Modo demonstração: criando job simulado");
+      
+      // Salva o PDF como base64 para visualização posterior
+      const reader = new FileReader();
+      const pdfBase64 = await new Promise((resolve) => {
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(pdfFile);
+      });
+      
       const novoJob = {
         id: Date.now().toString(),
         numeroOP: `DEMO-${Math.floor(Math.random() * 1000)}`,
@@ -355,7 +396,9 @@ export default function ProductionDashboard() {
         prazo: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR'),
         tipoPedido: 'VENDA',
         etapaAtual: 'NOVO_PEDIDO',
-        historicoEtapas: [{ etapa: "NOVO_PEDIDO", dataEntrada: new Date().toISOString() }]
+        historicoEtapas: [{ etapa: "NOVO_PEDIDO", dataEntrada: new Date().toISOString() }],
+        pdfData: pdfBase64, // Salva o PDF para visualização
+        pdfName: pdfFile.name
       };
       
       setJobs(prev => [...prev, novoJob]);
@@ -388,13 +431,26 @@ export default function ProductionDashboard() {
             <span>Modo Demonstração Ativo</span>
           </div>
           <div className="text-center text-blue-600 text-sm space-y-1">
-            <p>✅ Todas as funcionalidades visuais funcionam normalmente</p>
-            <p>📁 Upload de PDFs cria dados simulados • 🔄 Drag & drop funciona localmente</p>
-            <p>
+            <p>✅ Todas as funcionalidades funcionam normalmente</p>
+            <p>� Dados salvos automaticamente no navegador • 📁 PDFs armazenados para visualização</p>
+            <p>🔄 Drag & drop funciona • ✏️ Edição funciona • 📊 Relatórios funcionam</p>
+            <div className="flex items-center justify-center gap-4 mt-2">
               <a href="https://github.com/JonasDluna/pipeline-production-v5" target="_blank" rel="noopener noreferrer" className="underline font-semibold">
                 Ver código completo no GitHub
               </a>
-            </p>
+              <button
+                onClick={() => {
+                  if (confirm('Limpar todos os dados salvos? Esta ação não pode ser desfeita.')) {
+                    localStorage.removeItem('pipeline-jobs');
+                    localStorage.removeItem('pipeline-last-update');
+                    setJobs(dadosExemplo);
+                  }
+                }}
+                className="px-3 py-1 text-xs bg-red-100 text-red-700 border border-red-200 rounded hover:bg-red-200 transition"
+              >
+                🗑️ Limpar Dados
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -491,14 +547,45 @@ export default function ProductionDashboard() {
                         </div>
                         <div className="text-slate-500">Próxima ação: {stage.key==="FUNDICAO"?"Fundir":stage.key==="BANHO"?"Banhar":stage.key==="PINTURA"?"Pintar":stage.key==="EMBALAGEM"?"Embalar":"Nenhuma"}</div>
                       </div>
-                      <button className="mt-3 w-full text-[12px] font-medium bg-[#f5f2ff] hover:bg-[#ebe6ff] text-[#4a007f] border border-[#c9b8ff] rounded px-2 py-2 transition"
-                        onClick={()=>{ 
-                          const movimentacoes = job.historicoEtapas.map(h => {
-                            const data = new Date(h.dataEntrada).toLocaleString();
-                            return `${data} - Movido para ${h.etapa}`;
-                          }).join('\n');
-                          alert(
-                            [
+                      <div className="mt-3 space-y-2">
+                        <button className="w-full text-[12px] font-medium bg-[#f5f2ff] hover:bg-[#ebe6ff] text-[#4a007f] border border-[#c9b8ff] rounded px-2 py-2 transition"
+                          onClick={() => {
+                            setEditFormData({
+                              id: job.id,
+                              numeroOP: job.numeroOP,
+                              cliente: job.cliente,
+                              produto: job.produto,
+                              quantidade: job.quantidade,
+                              prazo: job.prazo,
+                              tipoPedido: job.tipoPedido || 'VENDA',
+                              etapaAtual: job.etapaAtual
+                            });
+                            setEditingJob(job);
+                          }}>
+                          ✏️ Editar OP
+                        </button>
+                        
+                        {(job.pdfData || job.pdfUrl) && (
+                          <button className="w-full text-[12px] font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded px-2 py-2 transition"
+                            onClick={() => {
+                              if (job.pdfData) {
+                                setCurrentPdfUrl(job.pdfData);
+                              } else if (job.pdfUrl) {
+                                setCurrentPdfUrl(job.pdfUrl);
+                              }
+                              setShowPdfViewer(true);
+                            }}>
+                            📄 Ver PDF Original
+                          </button>
+                        )}
+                        
+                        <button className="w-full text-[12px] font-medium bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded px-2 py-2 transition"
+                          onClick={() => { 
+                            const movimentacoes = job.historicoEtapas.map(h => {
+                              const data = new Date(h.dataEntrada).toLocaleString();
+                              return `${data} - Movido para ${h.etapa}`;
+                            }).join('\n');
+                            alert([
                               `OP: ${job.numeroOP}`,
                               `Cliente: ${job.cliente}`,
                               `Produto: ${job.produto}`,
@@ -508,17 +595,11 @@ export default function ProductionDashboard() {
                               job.emissao ? `Emissão: ${job.emissao}` : null,
                               '\nHistórico de Movimentações:',
                               movimentacoes
-                            ].filter(Boolean).join('\n')
-                          );
-                        }}>
-                        Ver Detalhes
-                      </button>
-                      {job.pdfUrl && (
-                        <button className="mt-2 w-full text-[12px] font-medium bg-white hover:bg-[#f5f2ff] text-[#4a007f] border border-[#c9b8ff] rounded px-2 py-2 transition"
-                          onClick={()=>setPdfPreviewUrl(job.pdfUrl)}>
-                          Ver OP (PDF)
+                            ].filter(Boolean).join('\n'));
+                          }}>
+                          📊 Ver Histórico
                         </button>
-                      )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1033,6 +1114,57 @@ export default function ProductionDashboard() {
                 
                 return cells;
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Visualizador de PDF */}
+      {showPdfViewer && currentPdfUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full h-full max-w-6xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold text-[#4a007f]">📄 Visualizar PDF Original</h2>
+              <button 
+                onClick={() => {
+                  setShowPdfViewer(false);
+                  setCurrentPdfUrl(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 p-4">
+              <iframe
+                src={currentPdfUrl}
+                className="w-full h-full border rounded"
+                title="Visualizador PDF"
+                style={{ minHeight: '500px' }}
+              />
+            </div>
+            <div className="p-4 border-t bg-gray-50 flex justify-between">
+              <div className="text-sm text-gray-600">
+                💡 Dica: Use Ctrl+F para buscar texto no PDF
+              </div>
+              <div className="space-x-2">
+                <a
+                  href={currentPdfUrl}
+                  download
+                  className="px-4 py-2 text-sm bg-[#4a007f] text-white rounded hover:bg-[#5f00a8] transition"
+                >
+                  ⬇️ Baixar PDF
+                </a>
+                <button
+                  onClick={() => {
+                    setShowPdfViewer(false);
+                    setCurrentPdfUrl(null);
+                  }}
+                  className="px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition"
+                >
+                  Fechar
+                </button>
+              </div>
             </div>
           </div>
         </div>
